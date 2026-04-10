@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ice Cream Tracker NZ - Find Ice Cream Vans Near You</title>
+    <meta name="description" content="Track ice cream vans in real-time across New Zealand">
+    
+    <!-- Google Maps -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6ftSvpvvPdNPGe3lbD81KJEEQB_zYTV0&libraries=geometry"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2B4C7E;
+        }
+        
+        .logo-emoji {
+            font-size: 32px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .stat-number {
+            font-weight: 700;
+            color: #2B4C7E;
+            font-size: 18px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2B4C7E;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .van-info {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 200px;
+            font-size: 14px;
+        }
+        
+        .van-name {
+            font-weight: 700;
+            color: #2B4C7E;
+            margin-bottom: 4px;
+        }
+        
+        .van-details {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .my-location-btn {
+            position: absolute;
+            bottom: 120px;
+            right: 20px;
+            background: white;
+            border: none;
+            padding: 14px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 24px;
+            transition: transform 0.2s;
+        }
+        
+        .my-location-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .my-location-btn:active {
+            transform: scale(0.95);
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px;
+            }
+            
+            .stats {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .logo-text {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <div style="color: #2B4C7E; font-weight: 600;">Loading Ice Cream Tracker...</div>
+    </div>
+    
+    <div class="header">
+        <div class="logo">
+            <span class="logo-emoji">🍦</span>
+            <span class="logo-text">Ice Cream Tracker NZ</span>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number" id="vanCount">0</div>
+                <div>Ice Cream Vans</div>
+            </div>
+            <div class="stat">
+                <div>🟢 Live Tracking</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+    
+    <button class="my-location-btn" onclick="centerOnUser()" title="My Location">📍</button>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTqN8gN3hP_Xz6vZQQXx4PY5Hd8VX2xYw",
+            authDomain: "icecreamtracker-9625b.firebaseapp.com",
+            databaseURL: "https://icecreamtracker-9625b-default-rtdb.firebaseio.com",
+            projectId: "icecreamtracker-9625b",
+            storageBucket: "icecreamtracker-9625b.firebasestorage.app",
+            messagingSenderId: "468582467639",
+            appId: "1:468582467639:web:7d4e7a16b5d8e4c0f3e8d2"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let map;
+        let markers = {};
+        let userMarker = null;
+        let userLocation = null;
+
+        // Initialize map
+        function initMap() {
+            // Default to Auckland, NZ
+            const defaultCenter = { lat: -36.8485, lng: 174.7633 };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: defaultCenter,
+                zoom: 13,
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ],
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false
+            });
+
+            // Get user's location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        map.setCenter(userLocation);
+                        
+                        // Add user marker
+                        userMarker = new google.maps.Marker({
+                            position: userLocation,
+                            map: map,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 10,
+                                fillColor: '#4285F4',
+                                fillOpacity: 1,
+                                strokeColor: 'white',
+                                strokeWeight: 3
+                            },
+                            title: 'Your Location'
+                        });
+                    },
+                    () => {
+                        console.log('Location access denied');
+                    }
+                );
+            }
+
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+
+            // Listen for ice cream van updates
+            listenForVans();
+        }
+
+        function listenForVans() {
+            const vansRef = database.ref('vans');
+            
+            vansRef.on('value', (snapshot) => {
+                const vans = snapshot.val();
+                
+                // Clear old markers
+                Object.keys(markers).forEach(key => {
+                    if (!vans || !vans[key]) {
+                        markers[key].setMap(null);
+                        delete markers[key];
+                    }
+                });
+                
+                // Update van count
+                const vanCount = vans ? Object.keys(vans).length : 0;
+                document.getElementById('vanCount').textContent = vanCount;
+                
+                if (vans) {
+                    Object.entries(vans).forEach(([id, van]) => {
+                        if (van.latitude && van.longitude) {
+                            updateVanMarker(id, van);
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateVanMarker(id, van) {
+            const position = { lat: van.latitude, lng: van.longitude };
+            
+            if (markers[id]) {
+                // Update existing marker
+                markers[id].setPosition(position);
+            } else {
+                // Create new marker
+                const marker = new google.maps.Marker({
+                    position: position,
+                    map: map,
+                    icon: {
+                        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9IiMyQjRDN0UiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMyIvPjx0ZXh0IHg9IjI0IiB5PSIzMCIgZm9udC1zaXplPSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+NpjwvdGV4dD48L3N2Zz4=',
+                        scaledSize: new google.maps.Size(48, 48),
+                        anchor: new google.maps.Point(24, 24)
+                    },
+                    title: van.name || 'Ice Cream Van',
+                    animation: google.maps.Animation.DROP
+                });
+                
+                // Info window
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div class="van-info">
+                            <div class="van-name">${van.name || 'Ice Cream Van'}</div>
+                            <div class="van-details">
+                                ${van.type || 'Traditional Ice Cream'}
+                            </div>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    // Close all other info windows
+                    Object.values(markers).forEach(m => {
+                        if (m.infoWindow) m.infoWindow.close();
+                    });
+                    infoWindow.open(map, marker);
+                });
+                
+                marker.infoWindow = infoWindow;
+                markers[id] = marker;
+            }
+        }
+
+        function centerOnUser() {
+            if (userLocation) {
+                map.setCenter(userLocation);
+                map.setZoom(15);
+            } else {
+                alert('Location not available. Please enable location services.');
+            }
+        }
+
+        // Initialize when page loads
+        window.onload = initMap;
+    </script>
+</body>
+</html>
