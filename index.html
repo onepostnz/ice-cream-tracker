@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Ice Cream Tracker NZ - Find Ice Cream Vans Near You</title>
+    <meta name="description" content="Track ice cream vans in real-time across New Zealand">
+    
+    <!-- Google Maps -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6ftSvpvvPdNPGe3lbD81KJEEQB_zYTV0&libraries=geometry"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+            touch-action: pan-x pan-y;
+        }
+        
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2B4C7E;
+        }
+        
+        .logo-emoji {
+            font-size: 32px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .stat-number {
+            font-weight: 700;
+            color: #2B4C7E;
+            font-size: 18px;
+        }
+        
+        /* Desktop Sidebar */
+        .sidebar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            bottom: 20px;
+            width: 380px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .sidebar-header h2 {
+            color: #2B4C7E;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .sidebar-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .sidebar-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .sidebar-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        .sidebar-content::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Mobile Bottom Panel */
+        .mobile-panel {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            max-height: 70vh;
+        }
+        
+        .mobile-panel.collapsed {
+            transform: translateY(calc(100% - 70px));
+        }
+        
+        .mobile-panel-handle {
+            width: 100%;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .mobile-panel-handle-bar {
+            width: 40px;
+            height: 4px;
+            background: #ccc;
+            border-radius: 2px;
+            margin: 0 auto 10px;
+        }
+        
+        .mobile-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2B4C7E;
+        }
+        
+        .mobile-panel-count {
+            font-size: 14px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .mobile-panel-content {
+            overflow-y: auto;
+            max-height: calc(70vh - 70px);
+            padding: 10px;
+        }
+        
+        .event-card, .van-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .event-card:active, .van-card:active {
+            transform: scale(0.98);
+            background: #f9f9f9;
+        }
+        
+        .van-card {
+            background: #f0f8ff;
+            border-color: #2B4C7E;
+        }
+        
+        .event-card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .event-icon {
+            font-size: 32px;
+            flex-shrink: 0;
+        }
+        
+        .event-info {
+            flex: 1;
+        }
+        
+        .event-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .event-date {
+            font-size: 14px;
+            color: #2B4C7E;
+            font-weight: 500;
+        }
+        
+        .event-details {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .event-description {
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .van-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2B4C7E;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .my-location-btn {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            background: white;
+            border: none;
+            padding: 14px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 999;
+            font-size: 24px;
+            transition: transform 0.2s;
+        }
+        
+        .my-location-btn:active {
+            transform: scale(0.9);
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                right: 20px;
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px;
+            }
+            
+            .stats {
+                flex-wrap: wrap;
+                gap: 12px;
+                font-size: 12px;
+            }
+            
+            .stat-number {
+                font-size: 16px;
+            }
+            
+            .logo-text {
+                font-size: 20px;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .mobile-panel {
+                display: block;
+            }
+            
+            .my-location-btn {
+                bottom: 90px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <div style="color: #2B4C7E; font-weight: 600;">Loading Ice Cream Tracker...</div>
+    </div>
+    
+    <div class="header">
+        <div class="logo">
+            <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8aefdd7871cddf7fbe587.png" alt="Ice Cream Tracker NZ" style="width: 50px; height: 50px; object-fit: contain;">
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number" id="vanCount">0</div>
+                <div>Live Vans</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number" id="eventCount">0</div>
+                <div>Events</div>
+            </div>
+            <div class="stat">
+                <div>🟢 Live</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Desktop Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Nearby Ice Cream</h2>
+            <p id="sidebarSubtitle">Events & Live Vans in this area</p>
+        </div>
+        <div class="sidebar-content" id="sidebarContent">
+            <div class="empty-state">
+                <div class="empty-state-icon">🍦</div>
+                <p>No ice cream nearby.<br>Move the map to explore!</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Bottom Panel -->
+    <div class="mobile-panel collapsed" id="mobilePanel">
+        <div class="mobile-panel-handle" onclick="toggleMobilePanel()">
+            <div class="mobile-panel-handle-bar"></div>
+            <div class="mobile-panel-title">🍦 Nearby Ice Cream</div>
+            <div class="mobile-panel-count" id="mobilePanelCount">Tap to view</div>
+        </div>
+        <div class="mobile-panel-content" id="mobilePanelContent">
+            <div class="empty-state">
+                <div class="empty-state-icon">🍦</div>
+                <p>No ice cream in this area</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+    
+    <button class="my-location-btn" onclick="centerOnUser()" title="My Location">📍</button>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAt8IUbIAf8Vf0Nse4lZa5uhpvEqdttNCQ",
+            authDomain: "icecreamtracker-9625b.firebaseapp.com",
+            databaseURL: "https://icecreamtracker-9625b-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "icecreamtracker-9625b",
+            storageBucket: "icecreamtracker-9625b.firebasestorage.app",
+            messagingSenderId: "468582467639",
+            appId: "1:468582467639:web:7d4e7a16b5d8e4c0f3e8d2"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const firestore = firebase.firestore();
+
+        let map;
+        let vanMarkers = {};
+        let eventMarkers = {};
+        let userMarker = null;
+        let userLocation = null;
+        let allEvents = [];
+        let allVans = {};
+
+        // Initialize map with mobile-friendly settings
+        function initMap() {
+            const defaultCenter = { lat: -36.8485, lng: 174.7633 };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: defaultCenter,
+                zoom: 13,
+                gestureHandling: 'greedy', // CRITICAL: Makes map work like Google Maps on mobile
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ],
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false,
+                zoomControl: true
+            });
+
+            // Get user's location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        map.setCenter(userLocation);
+                        
+                        userMarker = new google.maps.Marker({
+                            position: userLocation,
+                            map: map,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 10,
+                                fillColor: '#4285F4',
+                                fillOpacity: 1,
+                                strokeColor: 'white',
+                                strokeWeight: 3
+                            },
+                            title: 'Your Location'
+                        });
+                    },
+                    () => {
+                        console.log('Location access denied');
+                    }
+                );
+            }
+
+            document.getElementById('loading').style.display = 'none';
+
+            listenForVans();
+            listenForEvents();
+            
+            map.addListener('bounds_changed', updateSidebar);
+        }
+
+        function listenForVans() {
+            const vansRef = database.ref('vans');
+            
+            vansRef.on('value', (snapshot) => {
+                const vans = snapshot.val();
+                
+                Object.keys(vanMarkers).forEach(key => {
+                    if (!vans || !vans[key]) {
+                        vanMarkers[key].setMap(null);
+                        delete vanMarkers[key];
+                    }
+                });
+                
+                allVans = vans || {};
+                
+                const vanCount = vans ? Object.keys(vans).length : 0;
+                document.getElementById('vanCount').textContent = vanCount;
+                
+                if (vans) {
+                    Object.entries(vans).forEach(([id, van]) => {
+                        if (van.latitude && van.longitude) {
+                            updateVanMarker(id, van);
+                        }
+                    });
+                }
+                
+                updateSidebar();
+            });
+        }
+
+        function listenForEvents() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            firestore.collection('events')
+                .where('date', '>=', today)
+                .where('status', '==', 'upcoming')
+                .onSnapshot((snapshot) => {
+                    Object.values(eventMarkers).forEach(marker => marker.setMap(null));
+                    eventMarkers = {};
+                    
+                    allEvents = [];
+                    
+                    snapshot.forEach((doc) => {
+                        const event = { id: doc.id, ...doc.data() };
+                        allEvents.push(event);
+                        
+                        if (event.location && event.location.lat && event.location.lng) {
+                            createEventMarker(doc.id, event);
+                        }
+                    });
+                    
+                    document.getElementById('eventCount').textContent = snapshot.size;
+                    
+                    updateSidebar();
+                });
+        }
+
+        function updateVanMarker(id, van) {
+            const position = { lat: van.latitude, lng: van.longitude };
+            
+            if (vanMarkers[id]) {
+                vanMarkers[id].setPosition(position);
+            } else {
+                const marker = new google.maps.Marker({
+                    position: position,
+                    map: map,
+                    icon: {
+                        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9IiMyQjRDN0UiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMyIvPjx0ZXh0IHg9IjI0IiB5PSIzMCIgZm9udC1zaXplPSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+NpjwvdGV4dD48L3N2Zz4=',
+                        scaledSize: new google.maps.Size(48, 48),
+                        anchor: new google.maps.Point(24, 24)
+                    },
+                    title: van.name || 'Ice Cream Van',
+                    animation: google.maps.Animation.DROP,
+                    zIndex: 100
+                });
+                
+                marker.vanData = van;
+                vanMarkers[id] = marker;
+            }
+        }
+
+        function createEventMarker(id, event) {
+            const position = { lat: event.location.lat, lng: event.location.lng };
+            
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                icon: {
+                    url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9IiMyOGE3NDUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMyIvPjx0ZXh0IHg9IjI0IiB5PSIzMCIgZm9udC1zaXplPSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+ThTwvdGV4dD48L3N2Zz4=',
+                    scaledSize: new google.maps.Size(48, 48),
+                    anchor: new google.maps.Point(24, 24)
+                },
+                title: event.name,
+                animation: google.maps.Animation.DROP,
+                zIndex: 50
+            });
+            
+            marker.eventData = event;
+            eventMarkers[id] = marker;
+        }
+
+        function updateSidebar() {
+            if (!map) return;
+            
+            const bounds = map.getBounds();
+            if (!bounds) return;
+            
+            const visibleItems = [];
+            
+            Object.entries(allVans).forEach(([id, van]) => {
+                const position = new google.maps.LatLng(van.latitude, van.longitude);
+                if (bounds.contains(position)) {
+                    visibleItems.push({
+                        type: 'van',
+                        id: id,
+                        data: van,
+                        position: position
+                    });
+                }
+            });
+            
+            allEvents.forEach(event => {
+                if (event.location && event.location.lat && event.location.lng) {
+                    const position = new google.maps.LatLng(event.location.lat, event.location.lng);
+                    if (bounds.contains(position)) {
+                        visibleItems.push({
+                            type: 'event',
+                            id: event.id,
+                            data: event,
+                            position: position
+                        });
+                    }
+                }
+            });
+            
+            const html = generateListHTML(visibleItems);
+            
+            // Update desktop sidebar
+            document.getElementById('sidebarContent').innerHTML = html;
+            
+            // Update mobile panel
+            document.getElementById('mobilePanelContent').innerHTML = html;
+            const countText = visibleItems.length > 0 
+                ? `${visibleItems.length} item${visibleItems.length !== 1 ? 's' : ''} nearby` 
+                : 'No ice cream nearby';
+            document.getElementById('mobilePanelCount').textContent = countText;
+        }
+
+        function generateListHTML(items) {
+            if (items.length === 0) {
+                return `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🍦</div>
+                        <p>No ice cream in this area.<br>Move the map to explore!</p>
+                    </div>
+                `;
+            }
+            
+            let html = '';
+            const vans = items.filter(item => item.type === 'van');
+            const events = items.filter(item => item.type === 'event');
+            
+            vans.forEach(item => {
+                html += `
+                    <div class="van-card" onclick="zoomToLocation(${item.position.lat()}, ${item.position.lng()})">
+                        <div class="event-card-header">
+                            <div class="event-icon">🚐</div>
+                            <div class="event-info">
+                                <div class="event-name">${item.data.name || 'Ice Cream Van'}</div>
+                                <div class="event-details">${item.data.type || 'Traditional Ice Cream'}</div>
+                            </div>
+                        </div>
+                        <div class="van-badge">🟢 LIVE NOW</div>
+                    </div>
+                `;
+            });
+            
+            events.forEach(item => {
+                const eventDate = new Date(item.data.date + 'T' + item.data.time);
+                const dateStr = eventDate.toLocaleDateString('en-NZ', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const timeStr = eventDate.toLocaleTimeString('en-NZ', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                html += `
+                    <div class="event-card" onclick="zoomToLocation(${item.position.lat()}, ${item.position.lng()})">
+                        <div class="event-card-header">
+                            <div class="event-icon">📅</div>
+                            <div class="event-info">
+                                <div class="event-name">${item.data.name}</div>
+                                <div class="event-date">${dateStr} at ${timeStr}</div>
+                            </div>
+                        </div>
+                        <div class="event-details">📍 ${item.data.location.address || 'See map location'}</div>
+                        <div class="event-details">⏱️ ${item.data.duration}h duration</div>
+                        ${item.data.description ? `<div class="event-description">${item.data.description}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            return html;
+        }
+
+        function toggleMobilePanel() {
+            const panel = document.getElementById('mobilePanel');
+            panel.classList.toggle('collapsed');
+        }
+
+        function zoomToLocation(lat, lng) {
+            map.setCenter({ lat, lng });
+            map.setZoom(16);
+            
+            // Collapse mobile panel on mobile after clicking
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    document.getElementById('mobilePanel').classList.add('collapsed');
+                }, 300);
+            }
+        }
+
+        function centerOnUser() {
+            if (userLocation) {
+                map.setCenter(userLocation);
+                map.setZoom(15);
+            } else {
+                alert('Location not available. Please enable location services.');
+            }
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
