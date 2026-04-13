@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Dashboard - Ice Cream Tracker NZ</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <!-- Google Maps -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6ftSvpvvPdNPGe3lbD81KJEEQB_zYTV0&libraries=places"></script>
+    
+    <!-- Stripe -->
+    <script src="https://js.stripe.com/v3/"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #2B4C7E 0%, #3D5A8C 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Auth Screen */
+        .auth-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .auth-box {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .auth-header h1 {
+            color: #2B4C7E;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .auth-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2B4C7E;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #2B4C7E;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1e3558;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(43, 76, 126, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            margin-top: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            width: auto;
+        }
+        
+        .auth-toggle {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .auth-toggle a {
+            color: #2B4C7E;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .auth-toggle a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+        
+        .dashboard-header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .header-top h1 {
+            color: #2B4C7E;
+            font-size: 24px;
+        }
+        
+        .header-top .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-top .user-email {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* Go Live Toggle */
+        .live-toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .live-toggle-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .live-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+        
+        .live-indicator.active {
+            background: #28a745;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .live-text h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+        
+        .live-text p {
+            color: #666;
+            font-size: 13px;
+        }
+        
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 32px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #28a745;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(28px);
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #2B4C7E;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .events-list {
+            margin-top: 20px;
+        }
+        
+        .event-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #2B4C7E;
+        }
+        
+        .event-item h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .event-item p {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        
+        .event-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .event-actions button {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .btn-edit {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #138496;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        #map {
+            width: 100%;
+            height: 300px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        /* Trial Banner */
+        .trial-banner {
+            background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%);
+            color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+            display: none;
+        }
+        
+        .trial-banner.expired {
+            background: linear-gradient(135deg, #f44336 0%, #e57373 100%);
+        }
+        
+        .trial-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .trial-icon {
+            font-size: 40px;
+            flex-shrink: 0;
+        }
+        
+        .trial-text {
+            flex: 1;
+        }
+        
+        .trial-text strong {
+            font-size: 18px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .trial-text p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .btn-upgrade {
+            background: white;
+            color: #FF6B9D;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: transform 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-upgrade:hover {
+            transform: translateY(-2px);
+        }
+        
+        .trial-banner.expired .btn-upgrade {
+            color: #f44336;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-top {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .trial-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .trial-icon {
+                font-size: 32px;
+            }
+            
+            .btn-upgrade {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker NZ" style="width: 80px; height: 80px; margin: 0 auto 20px; display: block;">
+                <h1 style="display: none;">Ice Cream Tracker NZ</h1>
+                <p id="authTitle">Vendor Login</p>
+            </div>
+            
+            <div id="errorMessage" class="error-message"></div>
+            
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required placeholder="vendor@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required placeholder="Enter your password">
+                </div>
+                
+                <div class="form-group" id="businessNameGroup" style="display: none;">
+                    <label for="businessName">Business Name</label>
+                    <input type="text" id="businessName" placeholder="e.g., Mr Whippy Auckland">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="authButton">Login</button>
+            </form>
+            
+            <div class="auth-toggle">
+                <span id="authToggleText">Don't have an account?</span>
+                <a href="#" id="authToggleLink">Sign up</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard">
+        <div class="container">
+            <div class="dashboard-header">
+                <div class="header-top">
+                    <div style="text-align: center;">
+                        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8aefdd7871cddf7fbe587.png" alt="Ice Cream Tracker NZ" style="width: 50px; height: 50px; margin: 0 auto 8px; display: block;">
+                        <p class="user-email" id="userEmail"></p>
+                    </div>
+                    <div class="user-info">
+                        <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+                
+                <!-- Go Live Toggle -->
+                <div class="live-toggle-container">
+                    <div class="live-toggle-info">
+                        <div class="live-indicator" id="liveIndicator"></div>
+                        <div class="live-text">
+                            <h3 id="liveStatusText">Offline</h3>
+                            <p id="liveStatusDesc">Turn on to appear on customer map</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="liveToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Trial Banner -->
+            <div id="trialBanner" class="trial-banner">
+                <div class="trial-content">
+                    <div class="trial-icon">⏰</div>
+                    <div class="trial-text">
+                        <strong><span id="trialDaysLeft">45</span> days left in your free trial</strong>
+                        <p>Upgrade now to unlock event creation and multiple trucks!</p>
+                    </div>
+                    <a href="billing.html" class="btn-upgrade">Upgrade Now</a>
+                </div>
+            </div>
+            
+            <div class="dashboard-grid">
+                <!-- Create Event Card -->
+                <div class="card">
+                    <h2>Create New Event</h2>
+                    
+                    <div id="successMessage" class="success-message"></div>
+                    
+                    <form id="eventForm">
+                        <div class="form-group">
+                            <label for="eventName">Event Name</label>
+                            <input type="text" id="eventName" required placeholder="Summer Ice Cream Festival">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventLocation">Location</label>
+                            <input type="text" id="eventLocation" required placeholder="Search for a location">
+                        </div>
+                        
+                        <div id="map"></div>
+                        
+                        <div class="form-group">
+                            <label for="eventDate">Date</label>
+                            <input type="date" id="eventDate" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventTime">Time</label>
+                            <input type="time" id="eventTime" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventDuration">Duration (hours)</label>
+                            <input type="number" id="eventDuration" required min="0.5" step="0.5" value="2">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventDescription">Description</label>
+                            <textarea id="eventDescription" rows="3" placeholder="Tell customers about your event..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" id="createEventBtn">Create Event</button>
+                    </form>
+                </div>
+                
+                <!-- My Events Card -->
+                <div class="card">
+                    <h2>My Events</h2>
+                    <div id="eventsList" class="events-list">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <p>No events yet. Create your first event!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAt8IUbIAf8Vf0Nse4lZa5uhpvEqdttNCQ",
+            authDomain: "icecreamtracker-9625b.firebaseapp.com",
+            databaseURL: "https://icecreamtracker-9625b-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "icecreamtracker-9625b",
+            storageBucket: "icecreamtracker-9625b.firebasestorage.app",
+            messagingSenderId: "468582467639",
+            appId: "1:468582467639:web:7d4e7a16b5d8e4c0f3e8d2"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const rtdb = firebase.database();
+
+        let map;
+        let marker;
+        let selectedLocation = null;
+        let isSignUp = false;
+        let currentUser = null;
+        let editingEventId = null;
+        let isLive = false;
+        let gpsWatchId = null;
+
+        // Initialize map
+        function initMap() {
+            // Default to Auckland, NZ
+            const defaultCenter = { lat: -36.8485, lng: 174.7633 };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: defaultCenter,
+                zoom: 13,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false
+            });
+
+            marker = new google.maps.Marker({
+                map: map,
+                draggable: true,
+                animation: google.maps.Animation.DROP
+            });
+
+            // Location search autocomplete
+            const locationInput = document.getElementById('eventLocation');
+            const autocomplete = new google.maps.places.Autocomplete(locationInput, {
+                componentRestrictions: { country: 'nz' },
+                fields: ['geometry', 'formatted_address']
+            });
+
+            autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (place.geometry) {
+                    const location = place.geometry.location;
+                    selectedLocation = {
+                        lat: location.lat(),
+                        lng: location.lng(),
+                        address: place.formatted_address
+                    };
+                    map.setCenter(location);
+                    marker.setPosition(location);
+                }
+            });
+
+            // Update location when marker is dragged
+            marker.addListener('dragend', () => {
+                const position = marker.getPosition();
+                selectedLocation = {
+                    lat: position.lat(),
+                    lng: position.lng()
+                };
+            });
+        }
+
+        // Auth state observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                showDashboard();
+                checkTrialStatus(user.uid); // Check trial and apply feature locks
+                loadEvents();
+                checkLiveStatus();
+            } else {
+                showAuth();
+            }
+        });
+
+        // Toggle between login and signup
+        document.getElementById('authToggleLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            isSignUp = !isSignUp;
+            
+            if (isSignUp) {
+                document.getElementById('authTitle').textContent = 'Vendor Sign Up';
+                document.getElementById('authButton').textContent = 'Sign Up';
+                document.getElementById('businessNameGroup').style.display = 'block';
+                document.getElementById('authToggleText').textContent = 'Already have an account?';
+                document.getElementById('authToggleLink').textContent = 'Login';
+            } else {
+                document.getElementById('authTitle').textContent = 'Vendor Login';
+                document.getElementById('authButton').textContent = 'Login';
+                document.getElementById('businessNameGroup').style.display = 'none';
+                document.getElementById('authToggleText').textContent = "Don't have an account?";
+                document.getElementById('authToggleLink').textContent = 'Sign up';
+            }
+        });
+
+        // Auth form submission
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const businessName = document.getElementById('businessName').value;
+            
+            try {
+                if (isSignUp) {
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    
+                    // Calculate trial dates
+                    const trialStart = new Date();
+                    const trialEnd = new Date(trialStart.getTime() + (45 * 24 * 60 * 60 * 1000));
+                    
+                    // Save vendor profile with trial
+                    await db.collection('vendors').doc(userCredential.user.uid).set({
+                        uid: userCredential.user.uid,
+                        email: email,
+                        businessName: businessName,
+                        subscriptionStatus: 'trial',
+                        trialStartedAt: firebase.firestore.Timestamp.fromDate(trialStart),
+                        trialEndsAt: firebase.firestore.Timestamp.fromDate(trialEnd),
+                        truckCount: 0,
+                        eventCount: 0,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    await auth.signInWithEmailAndPassword(email, password);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        // Live Toggle Handler
+        document.getElementById('liveToggle').addEventListener('change', async (e) => {
+            isLive = e.target.checked;
+            
+            if (isLive) {
+                startLiveTracking();
+            } else {
+                stopLiveTracking();
+            }
+        });
+
+        // Start Live GPS Tracking
+        function startLiveTracking() {
+            if (!navigator.geolocation) {
+                showError('Geolocation is not supported by your browser');
+                document.getElementById('liveToggle').checked = false;
+                return;
+            }
+
+            // Save live status to localStorage
+            localStorage.setItem('icecream_live_status_' + currentUser.uid, 'true');
+            localStorage.setItem('icecream_live_timestamp_' + currentUser.uid, Date.now().toString());
+
+            // Update UI
+            document.getElementById('liveIndicator').classList.add('active');
+            document.getElementById('liveStatusText').textContent = '🟢 Live Now';
+            document.getElementById('liveStatusDesc').textContent = 'Customers can see you on the map';
+
+            // Start GPS tracking
+            gpsWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const location = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        timestamp: Date.now()
+                    };
+
+                    // Save to Realtime Database for live tracking
+                    rtdb.ref('vans/' + currentUser.uid).set({
+                        ...location,
+                        name: 'Ice Cream Van', // TODO: Get from vendor profile
+                        type: 'Traditional Ice Cream',
+                        vendorId: currentUser.uid
+                    });
+                },
+                (error) => {
+                    console.error('GPS Error:', error);
+                    showError('Unable to get your location. Please enable GPS.');
+                    stopLiveTracking();
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
+            );
+        }
+
+        // Stop Live GPS Tracking
+        function stopLiveTracking() {
+            isLive = false;
+            
+            // Clear live status from localStorage
+            localStorage.removeItem('icecream_live_status_' + currentUser.uid);
+            localStorage.removeItem('icecream_live_timestamp_' + currentUser.uid);
+            
+            // Update UI
+            document.getElementById('liveIndicator').classList.remove('active');
+            document.getElementById('liveStatusText').textContent = 'Offline';
+            document.getElementById('liveStatusDesc').textContent = 'Turn on to appear on customer map';
+
+            // Stop GPS tracking
+            if (gpsWatchId !== null) {
+                navigator.geolocation.clearWatch(gpsWatchId);
+                gpsWatchId = null;
+            }
+
+            // Remove from live map
+            rtdb.ref('vans/' + currentUser.uid).remove();
+        }
+
+        // Check live status on load
+        async function checkLiveStatus() {
+            // Check localStorage for persistent live status
+            const liveStatus = localStorage.getItem('icecream_live_status_' + currentUser.uid);
+            const liveTimestamp = localStorage.getItem('icecream_live_timestamp_' + currentUser.uid);
+            
+            if (liveStatus === 'true' && liveTimestamp) {
+                const timestamp = parseInt(liveTimestamp);
+                const now = Date.now();
+                const hoursPassed = (now - timestamp) / (1000 * 60 * 60);
+                
+                // Check if less than 24 hours have passed
+                if (hoursPassed < 24) {
+                    document.getElementById('liveToggle').checked = true;
+                    startLiveTracking();
+                } else {
+                    // Auto-timeout after 24 hours
+                    localStorage.removeItem('icecream_live_status_' + currentUser.uid);
+                    localStorage.removeItem('icecream_live_timestamp_' + currentUser.uid);
+                    stopLiveTracking();
+                }
+            }
+        }
+
+        // Event form submission
+        document.getElementById('eventForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!selectedLocation) {
+                showError('Please select a location on the map');
+                return;
+            }
+            
+            const eventData = {
+                name: document.getElementById('eventName').value,
+                location: selectedLocation,
+                date: document.getElementById('eventDate').value,
+                time: document.getElementById('eventTime').value,
+                duration: parseFloat(document.getElementById('eventDuration').value),
+                description: document.getElementById('eventDescription').value,
+                vendorId: currentUser.uid,
+                vendorEmail: currentUser.email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: 'upcoming'
+            };
+            
+            try {
+                if (editingEventId) {
+                    await db.collection('events').doc(editingEventId).update(eventData);
+                    showSuccess('Event updated successfully!');
+                    editingEventId = null;
+                    document.getElementById('createEventBtn').textContent = 'Create Event';
+                } else {
+                    await db.collection('events').add(eventData);
+                    showSuccess('Event created successfully!');
+                }
+                
+                document.getElementById('eventForm').reset();
+                selectedLocation = null;
+                marker.setPosition(null);
+                loadEvents();
+            } catch (error) {
+                showError('Error creating event: ' + error.message);
+            }
+        });
+
+        // Load vendor's events
+        function loadEvents() {
+            db.collection('events')
+                .where('vendorId', '==', currentUser.uid)
+                .orderBy('createdAt', 'desc')
+                .onSnapshot((snapshot) => {
+                    const eventsList = document.getElementById('eventsList');
+                    
+                    if (snapshot.empty) {
+                        eventsList.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📅</div>
+                                <p>No events yet. Create your first event!</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    eventsList.innerHTML = '';
+                    snapshot.forEach((doc) => {
+                        const event = doc.data();
+                        const eventEl = document.createElement('div');
+                        eventEl.className = 'event-item';
+                        eventEl.innerHTML = `
+                            <h3>${event.name}</h3>
+                            <p>📍 ${event.location.address || 'Location set on map'}</p>
+                            <p>📅 ${event.date} at ${event.time}</p>
+                            <p>⏱️ ${event.duration} hour(s)</p>
+                            <p>${event.description || 'No description'}</p>
+                            <div class="event-actions">
+                                <button class="btn-edit" onclick="editEvent('${doc.id}')">Edit</button>
+                                <button class="btn-delete" onclick="deleteEvent('${doc.id}')">Delete</button>
+                            </div>
+                        `;
+                        eventsList.appendChild(eventEl);
+                    });
+                });
+        }
+
+        // Edit event
+        function editEvent(eventId) {
+            editingEventId = eventId;
+            
+            db.collection('events').doc(eventId).get().then((doc) => {
+                const event = doc.data();
+                document.getElementById('eventName').value = event.name;
+                document.getElementById('eventLocation').value = event.location.address || '';
+                document.getElementById('eventDate').value = event.date;
+                document.getElementById('eventTime').value = event.time;
+                document.getElementById('eventDuration').value = event.duration;
+                document.getElementById('eventDescription').value = event.description || '';
+                
+                selectedLocation = event.location;
+                map.setCenter(selectedLocation);
+                marker.setPosition(selectedLocation);
+                
+                document.getElementById('createEventBtn').textContent = 'Update Event';
+                window.scrollTo(0, 0);
+            });
+        }
+
+        // Delete event
+        async function deleteEvent(eventId) {
+            if (confirm('Are you sure you want to delete this event?')) {
+                try {
+                    await db.collection('events').doc(eventId).delete();
+                    showSuccess('Event deleted successfully!');
+                } catch (error) {
+                    showError('Error deleting event: ' + error.message);
+                }
+            }
+        }
+
+        // Logout
+        function logout() {
+            stopLiveTracking();
+            auth.signOut();
+        }
+
+        // UI helpers
+        function showAuth() {
+            document.getElementById('authScreen').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'none';
+        }
+
+        function showDashboard() {
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('userEmail').textContent = currentUser.email;
+            
+            // Initialize map when dashboard is shown
+            setTimeout(() => {
+                initMap();
+            }, 100);
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => {
+                successEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // ============================================
+        // TRIAL MANAGEMENT
+        // ============================================
+        
+        let currentVendor = null;
+
+        async function checkTrialStatus(uid) {
+            try {
+                const vendorDoc = await db.collection('vendors').doc(uid).get();
+                
+                if (!vendorDoc.exists) {
+                    console.warn('Vendor document not found - may be old account');
+                    return;
+                }
+
+                currentVendor = { id: vendorDoc.id, ...vendorDoc.data() };
+                
+                // Check subscription status
+                if (currentVendor.subscriptionStatus === 'trial') {
+                    const trialEnd = currentVendor.trialEndsAt.toDate();
+                    const now = new Date();
+                    const daysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysLeft > 0) {
+                        showTrialBanner(daysLeft);
+                    } else {
+                        // Trial expired - update status
+                        await db.collection('vendors').doc(uid).update({
+                            subscriptionStatus: 'expired'
+                        });
+                        currentVendor.subscriptionStatus = 'expired';
+                        showExpiredBanner();
+                    }
+                } else if (currentVendor.subscriptionStatus === 'expired') {
+                    showExpiredBanner();
+                } else if (currentVendor.subscriptionStatus === 'active') {
+                    // Hide trial banner for paid users
+                    document.getElementById('trialBanner').style.display = 'none';
+                }
+                
+                // Apply feature locks based on status
+                applyFeatureLocks(currentVendor);
+                
+            } catch (error) {
+                console.error('Error checking trial status:', error);
+            }
+        }
+
+        function showTrialBanner(daysLeft) {
+            const banner = document.getElementById('trialBanner');
+            const daysEl = document.getElementById('trialDaysLeft');
+            
+            if (banner && daysEl) {
+                daysEl.textContent = daysLeft;
+                banner.classList.remove('expired');
+                banner.style.display = 'block';
+            }
+        }
+
+        function showExpiredBanner() {
+            const banner = document.getElementById('trialBanner');
+            if (banner) {
+                banner.innerHTML = `
+                    <div class="trial-content">
+                        <div class="trial-icon">⚠️</div>
+                        <div class="trial-text">
+                            <strong>Trial Expired</strong>
+                            <p>Upgrade to a paid plan to continue using Ice Cream Tracker</p>
+                        </div>
+                        <a href="billing.html" class="btn-upgrade">Choose a Plan</a>
+                    </div>
+                `;
+                banner.classList.add('expired');
+                banner.style.display = 'block';
+            }
+        }
+
+        function applyFeatureLocks(vendor) {
+            const createEventBtn = document.getElementById('createEventBtn');
+            const eventForm = document.getElementById('eventForm');
+            const liveToggle = document.getElementById('liveToggle');
+            
+            // Disable event creation for trial users
+            if (vendor.subscriptionStatus === 'trial') {
+                if (createEventBtn && eventForm) {
+                    createEventBtn.disabled = true;
+                    createEventBtn.title = 'Upgrade to create events';
+                    createEventBtn.style.opacity = '0.5';
+                    createEventBtn.style.cursor = 'not-allowed';
+                    
+                    // Disable all form inputs
+                    const formInputs = eventForm.querySelectorAll('input, textarea, button');
+                    formInputs.forEach(input => {
+                        input.disabled = true;
+                        input.style.opacity = '0.5';
+                    });
+                    
+                    // Add upgrade message
+                    const upgradeMessage = document.createElement('div');
+                    upgradeMessage.style.cssText = 'background: #FFF3E0; border: 2px solid #FF9800; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;';
+                    upgradeMessage.innerHTML = `
+                        <strong style="color: #F57C00; display: block; margin-bottom: 8px;">🔒 Event Creation Locked</strong>
+                        <p style="margin: 0 0 10px 0; color: #666;">Upgrade to a paid plan to create and manage events</p>
+                        <a href="billing.html" class="btn-upgrade" style="background: #FF9800; color: white; padding: 8px 20px; font-size: 14px;">View Plans</a>
+                    `;
+                    
+                    const eventCard = createEventBtn.closest('.card');
+                    if (eventCard && !eventCard.querySelector('.upgrade-message')) {
+                        upgradeMessage.className = 'upgrade-message';
+                        eventCard.insertBefore(upgradeMessage, eventForm);
+                    }
+                }
+            }
+            
+            // Disable ALL features for expired users
+            if (vendor.subscriptionStatus === 'expired') {
+                // Disable live toggle
+                if (liveToggle) {
+                    liveToggle.disabled = true;
+                    liveToggle.checked = false;
+                    const container = liveToggle.closest('.live-toggle-container');
+                    if (container) {
+                        container.style.opacity = '0.5';
+                        container.style.pointerEvents = 'none';
+                    }
+                }
+                
+                // Disable event creation completely
+                if (createEventBtn && eventForm) {
+                    createEventBtn.disabled = true;
+                    createEventBtn.style.display = 'none';
+                    
+                    const formInputs = eventForm.querySelectorAll('input, textarea, button');
+                    formInputs.forEach(input => {
+                        input.disabled = true;
+                    });
+                    
+                    // Show expired message
+                    const expiredMessage = document.createElement('div');
+                    expiredMessage.style.cssText = 'background: #FFEBEE; border: 2px solid #f44336; padding: 20px; border-radius: 8px; text-align: center;';
+                    expiredMessage.innerHTML = `
+                        <strong style="color: #C62828; display: block; margin-bottom: 8px; font-size: 18px;">⚠️ Trial Expired</strong>
+                        <p style="margin: 0 0 15px 0; color: #666;">Your free trial has ended. Choose a plan to continue using Ice Cream Tracker.</p>
+                        <a href="billing.html" class="btn-upgrade" style="background: #f44336; color: white; padding: 12px 30px;">Choose a Plan</a>
+                    `;
+                    
+                    const eventCard = createEventBtn.closest('.card');
+                    if (eventCard) {
+                        eventCard.innerHTML = '';
+                        eventCard.appendChild(expiredMessage);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
