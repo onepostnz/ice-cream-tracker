@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin - Ice Cream Tracker NZ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #FF6B9D;
+            --primary-dark: #E5537C;
+            --secondary: #4ECDC4;
+            --dark: #1a1f36;
+            --dark-light: #2d3250;
+            --text: #333;
+            --text-light: #666;
+            --border: #e0e0e0;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --bg: #f5f7fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Auth Screen */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .auth-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .auth-card img {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            display: block;
+        }
+
+        .auth-card h1 {
+            color: var(--dark);
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .auth-card p {
+            color: var(--text-light);
+            margin-bottom: 30px;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left h1 {
+            font-size: 20px;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .header-left p {
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-card.success {
+            border-left-color: var(--success);
+        }
+
+        .stat-card.warning {
+            border-left-color: var(--warning);
+        }
+
+        .stat-card.info {
+            border-left-color: var(--secondary);
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .stat-change {
+            font-size: 14px;
+            margin-top: 8px;
+            color: var(--success);
+        }
+
+        /* Content */
+        .content {
+            padding: 0 30px 30px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            color: var(--dark);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            background: var(--bg);
+            color: var(--text);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 15px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge.trial {
+            background: #FFF3E0;
+            color: #F57C00;
+        }
+
+        .badge.active {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        .badge.expired {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+
+        .badge.cancelled {
+            background: #F5F5F5;
+            color: #616161;
+        }
+
+        .badge.starter {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+
+        .badge.professional {
+            background: #F3E5F5;
+            color: #7B1FA2;
+        }
+
+        .badge.enterprise {
+            background: #FFF9C4;
+            color: #F57F17;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--dark-light);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: var(--dark);
+        }
+
+        .btn-small {
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Action Buttons */
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .table-container {
+                overflow-x: scroll;
+            }
+
+            table {
+                min-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Container -->
+    <div id="authContainer" class="auth-container">
+        <div class="auth-card">
+            <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker NZ">
+            <h1>Super Admin Portal</h1>
+            <p>Admin access only</p>
+            <div class="form-group">
+                <input type="email" id="adminEmail" class="form-control" placeholder="Admin Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="adminPassword" class="form-control" placeholder="Password" required>
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="adminLogin()">Login as Admin</button>
+            <p id="authError" style="color: var(--danger); margin-top: 15px; font-size: 14px;"></p>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <h1>Super Admin Dashboard</h1>
+                <p id="adminEmailDisplay"></p>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Vendors</div>
+                <div class="stat-value" id="totalVendors">0</div>
+                <div class="stat-change">↑ All registered vendors</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-label">Active Subscriptions</div>
+                <div class="stat-value" id="activeSubscriptions">0</div>
+                <div class="stat-change">Currently paying</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-label">Free Trials</div>
+                <div class="stat-value" id="freeTrials">0</div>
+                <div class="stat-change">45-day trial period</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-label">Monthly Revenue</div>
+                <div class="stat-value" id="monthlyRevenue">$0</div>
+                <div class="stat-change">Estimated MRR</div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Vendors Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>Vendor Management</h2>
+                    <button class="btn btn-primary btn-small" onclick="refreshVendors()">🔄 Refresh</button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('all')">All Vendors</button>
+                    <button class="tab" onclick="switchTab('trial')">Free Trials</button>
+                    <button class="tab" onclick="switchTab('active')">Active Paid</button>
+                    <button class="tab" onclick="switchTab('expired')">Expired/Cancelled</button>
+                </div>
+
+                <!-- All Vendors Tab -->
+                <div id="allTab" class="tab-content active">
+                    <div id="vendorsLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading vendors...</p>
+                    </div>
+                    <div id="vendorsTable" style="display: none;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Business Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Status</th>
+                                        <th>Plan</th>
+                                        <th>Trial Ends</th>
+                                        <th>Trucks</th>
+                                        <th>Events</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vendorsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="vendorsEmpty" class="empty-state" style="display: none;">
+                        <h3>No vendors yet</h3>
+                        <p>Vendors will appear here once they register</p>
+                    </div>
+                </div>
+
+                <!-- Trial Tab -->
+                <div id="trialTab" class="tab-content">
+                    <div id="trialTable" class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Business Name</th>
+                                    <th>Email</th>
+                                    <th>Days Remaining</th>
+                                    <th>Trucks</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trialTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Active Tab -->
+                <div id="activeTab" class="tab-content">
+                    <div id="activeTable" class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Business Name</th>
+                                    <th>Email</th>
+                                    <th>Plan</th>
+                                    <th>Stripe Customer</th>
+                                    <th>MRR</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activeTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Expired Tab -->
+                <div id="expiredTab" class="tab-content">
+                    <div id="expiredTable" class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Business Name</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Expired On</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expiredTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>All Events</h2>
+                    <button class="btn btn-primary btn-small" onclick="refreshEvents()">🔄 Refresh</button>
+                </div>
+                <div id="eventsLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading events...</p>
+                </div>
+                <div id="eventsTable" style="display: none;">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Event Name</th>
+                                    <th>Vendor</th>
+                                    <th>Location</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="eventsEmpty" class="empty-state" style="display: none;">
+                    <h3>No events yet</h3>
+                    <p>Events will appear here once vendors create them</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAt8IUbIAf8Vf0Nse4lZa5uhpvEqdttNCQ",
+            authDomain: "icecreamtracker-9625b.firebaseapp.com",
+            databaseURL: "https://icecreamtracker-9625b-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "icecreamtracker-9625b",
+            storageBucket: "icecreamtracker-9625b.firebasestorage.app",
+            messagingSenderId: "468582467639",
+            appId: "1:468582467639:web:7d4e7a16b5d8e4c0f3e8d2"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const rtdb = firebase.database();
+
+        // Hardcoded admin emails (Option B)
+        const ADMIN_EMAILS = [
+            'sam@onepost.co.nz',
+            'admin@icecreamtracker.co.nz'
+            // Add more admin emails here as needed
+        ];
+
+        // Pricing Plans
+        const PRICING_PLANS = {
+            starter: { name: 'Starter', price: 29, trucks: 1, events: 10 },
+            professional: { name: 'Professional', price: 49, trucks: 3, events: -1 },
+            enterprise: { name: 'Enterprise', price: 99, trucks: -1, events: -1 }
+        };
+
+        // Admin Login
+        async function adminLogin() {
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const errorEl = document.getElementById('authError');
+
+            errorEl.textContent = '';
+
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter email and password';
+                return;
+            }
+
+            // Check if email is in admin list
+            if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+                errorEl.textContent = 'Access denied: Not an admin account';
+                return;
+            }
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                console.error('Login error:', error);
+                errorEl.textContent = error.message;
+            }
+        }
+
+        // Logout
+        function logout() {
+            auth.signOut();
+        }
+
+        // Auth State Observer
+        auth.onAuthStateChanged(user => {
+            if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+                // Admin authenticated
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                document.getElementById('adminEmailDisplay').textContent = user.email;
+                loadDashboardData();
+            } else {
+                // Not authenticated or not admin
+                document.getElementById('authContainer').style.display = 'flex';
+                document.getElementById('dashboard').classList.remove('active');
+                if (user && !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+                    auth.signOut();
+                    document.getElementById('authError').textContent = 'Access denied: Not an admin account';
+                }
+            }
+        });
+
+        // Load Dashboard Data
+        async function loadDashboardData() {
+            await Promise.all([
+                loadVendors(),
+                loadEvents(),
+                updateStats()
+            ]);
+        }
+
+        // Load Vendors
+        let vendorsData = [];
+
+        async function loadVendors() {
+            const loadingEl = document.getElementById('vendorsLoading');
+            const tableEl = document.getElementById('vendorsTable');
+            const emptyEl = document.getElementById('vendorsEmpty');
+
+            loadingEl.style.display = 'block';
+            tableEl.style.display = 'none';
+            emptyEl.style.display = 'none';
+
+            try {
+                const snapshot = await db.collection('vendors').get();
+                vendorsData = [];
+
+                snapshot.forEach(doc => {
+                    vendorsData.push({ id: doc.id, ...doc.data() });
+                });
+
+                if (vendorsData.length === 0) {
+                    emptyEl.style.display = 'block';
+                } else {
+                    renderVendorsTable(vendorsData);
+                    tableEl.style.display = 'block';
+                }
+
+                loadingEl.style.display = 'none';
+            } catch (error) {
+                console.error('Error loading vendors:', error);
+                loadingEl.innerHTML = '<p style="color: var(--danger);">Error loading vendors</p>';
+            }
+        }
+
+        // Render Vendors Table
+        function renderVendorsTable(vendors) {
+            const tbody = document.getElementById('vendorsTableBody');
+            tbody.innerHTML = '';
+
+            vendors.forEach(vendor => {
+                const tr = document.createElement('tr');
+                
+                const status = getVendorStatus(vendor);
+                const statusBadge = `<span class="badge ${status.class}">${status.text}</span>`;
+                
+                const planBadge = vendor.subscriptionPlan 
+                    ? `<span class="badge ${vendor.subscriptionPlan}">${PRICING_PLANS[vendor.subscriptionPlan]?.name || 'Unknown'}</span>`
+                    : '<span class="badge trial">Free Trial</span>';
+
+                const trialEnds = vendor.trialEndsAt 
+                    ? new Date(vendor.trialEndsAt).toLocaleDateString()
+                    : 'N/A';
+
+                const daysRemaining = vendor.trialEndsAt 
+                    ? Math.max(0, Math.ceil((new Date(vendor.trialEndsAt) - new Date()) / (1000 * 60 * 60 * 24)))
+                    : 'N/A';
+
+                tr.innerHTML = `
+                    <td><strong>${vendor.businessName || 'N/A'}</strong></td>
+                    <td>${vendor.email}</td>
+                    <td>${vendor.phone || 'N/A'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${planBadge}</td>
+                    <td>${status.isTrial ? `${trialEnds} (${daysRemaining}d)` : 'N/A'}</td>
+                    <td>${vendor.truckCount || 0}</td>
+                    <td>${vendor.eventCount || 0}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn btn-primary btn-small" onclick="viewVendor('${vendor.id}')">View</button>
+                            ${status.isTrial ? `<button class="btn btn-success btn-small" onclick="upgradeVendor('${vendor.id}')">Upgrade</button>` : ''}
+                            <button class="btn btn-danger btn-small" onclick="suspendVendor('${vendor.id}')">Suspend</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Get Vendor Status
+        function getVendorStatus(vendor) {
+            const now = new Date();
+            const trialEnd = vendor.trialEndsAt ? new Date(vendor.trialEndsAt) : null;
+
+            if (vendor.subscriptionStatus === 'active') {
+                return { text: 'Active', class: 'active', isTrial: false };
+            }
+
+            if (vendor.subscriptionStatus === 'cancelled') {
+                return { text: 'Cancelled', class: 'cancelled', isTrial: false };
+            }
+
+            if (trialEnd && trialEnd > now) {
+                return { text: 'Free Trial', class: 'trial', isTrial: true };
+            }
+
+            if (trialEnd && trialEnd <= now) {
+                return { text: 'Trial Expired', class: 'expired', isTrial: false };
+            }
+
+            return { text: 'Free Trial', class: 'trial', isTrial: true };
+        }
+
+        // Load Events
+        async function loadEvents() {
+            const loadingEl = document.getElementById('eventsLoading');
+            const tableEl = document.getElementById('eventsTable');
+            const emptyEl = document.getElementById('eventsEmpty');
+
+            loadingEl.style.display = 'block';
+            tableEl.style.display = 'none';
+            emptyEl.style.display = 'none';
+
+            try {
+                const snapshot = await db.collection('events').orderBy('createdAt', 'desc').limit(100).get();
+                const events = [];
+
+                snapshot.forEach(doc => {
+                    events.push({ id: doc.id, ...doc.data() });
+                });
+
+                if (events.length === 0) {
+                    emptyEl.style.display = 'block';
+                } else {
+                    renderEventsTable(events);
+                    tableEl.style.display = 'block';
+                }
+
+                loadingEl.style.display = 'none';
+            } catch (error) {
+                console.error('Error loading events:', error);
+                loadingEl.innerHTML = '<p style="color: var(--danger);">Error loading events</p>';
+            }
+        }
+
+        // Render Events Table
+        async function renderEventsTable(events) {
+            const tbody = document.getElementById('eventsTableBody');
+            tbody.innerHTML = '';
+
+            for (const event of events) {
+                const tr = document.createElement('tr');
+                
+                // Get vendor name
+                let vendorName = 'Unknown';
+                if (event.vendorId) {
+                    try {
+                        const vendorDoc = await db.collection('vendors').doc(event.vendorId).get();
+                        if (vendorDoc.exists) {
+                            vendorName = vendorDoc.data().businessName || vendorDoc.data().email;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching vendor:', error);
+                    }
+                }
+
+                const statusBadge = event.status === 'upcoming' 
+                    ? '<span class="badge active">Upcoming</span>'
+                    : event.status === 'completed'
+                    ? '<span class="badge">Completed</span>'
+                    : '<span class="badge cancelled">Cancelled</span>';
+
+                tr.innerHTML = `
+                    <td><strong>${event.name}</strong></td>
+                    <td>${vendorName}</td>
+                    <td>${event.location}</td>
+                    <td>${event.date}</td>
+                    <td>${event.startTime} - ${event.endTime}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn btn-primary btn-small" onclick="viewEvent('${event.id}')">View</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteEvent('${event.id}')">Delete</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // Update Stats
+        async function updateStats() {
+            try {
+                const vendorsSnapshot = await db.collection('vendors').get();
+                let totalVendors = 0;
+                let activeSubscriptions = 0;
+                let freeTrials = 0;
+                let monthlyRevenue = 0;
+
+                vendorsSnapshot.forEach(doc => {
+                    totalVendors++;
+                    const vendor = doc.data();
+                    const status = getVendorStatus(vendor);
+
+                    if (status.isTrial) {
+                        freeTrials++;
+                    }
+
+                    if (vendor.subscriptionStatus === 'active' && vendor.subscriptionPlan) {
+                        activeSubscriptions++;
+                        monthlyRevenue += PRICING_PLANS[vendor.subscriptionPlan]?.price || 0;
+                    }
+                });
+
+                document.getElementById('totalVendors').textContent = totalVendors;
+                document.getElementById('activeSubscriptions').textContent = activeSubscriptions;
+                document.getElementById('freeTrials').textContent = freeTrials;
+                document.getElementById('monthlyRevenue').textContent = `$${monthlyRevenue.toLocaleString()}`;
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+
+            // Filter vendors based on tab
+            if (tabName !== 'all') {
+                filterVendors(tabName);
+            }
+        }
+
+        // Filter Vendors
+        function filterVendors(filterType) {
+            let filtered = [];
+
+            switch (filterType) {
+                case 'trial':
+                    filtered = vendorsData.filter(v => getVendorStatus(v).isTrial);
+                    renderFilteredTable(filtered, 'trialTableBody', 'trial');
+                    break;
+                case 'active':
+                    filtered = vendorsData.filter(v => v.subscriptionStatus === 'active');
+                    renderFilteredTable(filtered, 'activeTableBody', 'active');
+                    break;
+                case 'expired':
+                    filtered = vendorsData.filter(v => {
+                        const status = getVendorStatus(v);
+                        return status.text === 'Trial Expired' || v.subscriptionStatus === 'cancelled';
+                    });
+                    renderFilteredTable(filtered, 'expiredTableBody', 'expired');
+                    break;
+            }
+        }
+
+        // Render Filtered Table
+        function renderFilteredTable(vendors, tbodyId, type) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+
+            if (vendors.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-light);">No vendors found</td></tr>';
+                return;
+            }
+
+            vendors.forEach(vendor => {
+                const tr = document.createElement('tr');
+
+                if (type === 'trial') {
+                    const daysRemaining = vendor.trialEndsAt 
+                        ? Math.max(0, Math.ceil((new Date(vendor.trialEndsAt) - new Date()) / (1000 * 60 * 60 * 24)))
+                        : 'N/A';
+
+                    tr.innerHTML = `
+                        <td><strong>${vendor.businessName || 'N/A'}</strong></td>
+                        <td>${vendor.email}</td>
+                        <td><span class="badge warning">${daysRemaining} days</span></td>
+                        <td>${vendor.truckCount || 0}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn btn-success btn-small" onclick="upgradeVendor('${vendor.id}')">Upgrade</button>
+                                <button class="btn btn-primary btn-small" onclick="viewVendor('${vendor.id}')">View</button>
+                            </div>
+                        </td>
+                    `;
+                } else if (type === 'active') {
+                    const planBadge = vendor.subscriptionPlan 
+                        ? `<span class="badge ${vendor.subscriptionPlan}">${PRICING_PLANS[vendor.subscriptionPlan]?.name || 'Unknown'}</span>`
+                        : 'N/A';
+                    
+                    const mrr = vendor.subscriptionPlan ? `$${PRICING_PLANS[vendor.subscriptionPlan]?.price || 0}` : 'N/A';
+
+                    tr.innerHTML = `
+                        <td><strong>${vendor.businessName || 'N/A'}</strong></td>
+                        <td>${vendor.email}</td>
+                        <td>${planBadge}</td>
+                        <td>${vendor.stripeCustomerId || 'N/A'}</td>
+                        <td><strong>${mrr}</strong></td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn btn-primary btn-small" onclick="viewVendor('${vendor.id}')">View</button>
+                                <button class="btn btn-secondary btn-small" onclick="openStripeCustomer('${vendor.stripeCustomerId}')">Stripe</button>
+                            </div>
+                        </td>
+                    `;
+                } else if (type === 'expired') {
+                    const status = getVendorStatus(vendor);
+                    const expiredDate = vendor.trialEndsAt ? new Date(vendor.trialEndsAt).toLocaleDateString() : 'N/A';
+
+                    tr.innerHTML = `
+                        <td><strong>${vendor.businessName || 'N/A'}</strong></td>
+                        <td>${vendor.email}</td>
+                        <td><span class="badge ${status.class}">${status.text}</span></td>
+                        <td>${expiredDate}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn btn-primary btn-small" onclick="viewVendor('${vendor.id}')">View</button>
+                                <button class="btn btn-danger btn-small" onclick="deleteVendor('${vendor.id}')">Delete</button>
+                            </div>
+                        </td>
+                    `;
+                }
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Action Functions
+        function refreshVendors() {
+            loadVendors();
+        }
+
+        function refreshEvents() {
+            loadEvents();
+        }
+
+        function viewVendor(vendorId) {
+            alert(`View vendor details for: ${vendorId}\n\nThis would open a modal with full vendor information, subscription history, and event list.`);
+        }
+
+        function upgradeVendor(vendorId) {
+            alert(`Upgrade vendor: ${vendorId}\n\nThis would open a modal to manually upgrade the vendor to a paid plan or send them a Stripe payment link.`);
+        }
+
+        function suspendVendor(vendorId) {
+            if (confirm('Are you sure you want to suspend this vendor? They will lose access to the platform.')) {
+                // Implement suspension logic
+                alert('Vendor suspended (to be implemented)');
+            }
+        }
+
+        function deleteVendor(vendorId) {
+            if (confirm('Are you sure you want to permanently delete this vendor? This action cannot be undone.')) {
+                // Implement deletion logic
+                alert('Vendor deleted (to be implemented)');
+            }
+        }
+
+        function viewEvent(eventId) {
+            alert(`View event details for: ${eventId}\n\nThis would show full event information.`);
+        }
+
+        function deleteEvent(eventId) {
+            if (confirm('Are you sure you want to delete this event?')) {
+                db.collection('events').doc(eventId).delete()
+                    .then(() => {
+                        alert('Event deleted successfully');
+                        loadEvents();
+                    })
+                    .catch(error => {
+                        console.error('Error deleting event:', error);
+                        alert('Error deleting event');
+                    });
+            }
+        }
+
+        function openStripeCustomer(customerId) {
+            if (customerId) {
+                window.open(`https://dashboard.stripe.com/customers/${customerId}`, '_blank');
+            } else {
+                alert('No Stripe customer ID found');
+            }
+        }
+    </script>
+</body>
+</html>
