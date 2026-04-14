@@ -40,7 +40,7 @@ const createEmailTransporter = () => {
 
 const emailTemplates = {
     welcomeTrial: (vendorName) => ({
-        subject: '\ud83c\udf66 Welcome to Ice Cream Tracker - 45 Day Free Trial!',
+        subject: '🍦 Welcome to Ice Cream Tracker - 45 Day Free Trial!',
         html: `
             <!DOCTYPE html>
             <html>
@@ -56,14 +56,14 @@ const emailTemplates = {
             </head>
             <body>
                 <div class="container">
-                    <div class="header"><h1>\ud83c\udf66 Welcome to Ice Cream Tracker!</h1></div>
+                    <div class="header"><h1>🍦 Welcome to Ice Cream Tracker!</h1></div>
                     <div class="content">
                         <p>Hi ${vendorName || 'there'},</p>
                         <p>Thanks for signing up! Your <strong>45-day free trial</strong> has started.</p>
-                        <h3>\ud83c\udf81 What you can do during your trial:</h3>
+                        <h3>🎁 What you can do during your trial:</h3>
                         <ul>
-                            <li>\u2705 Track your ice cream truck in real-time</li>
-                            <li>\u2705 Appear on the customer-facing map</li>
+                            <li>✅ Track your ice cream truck in real-time</li>
+                            <li>✅ Appear on the customer-facing map</li>
                         </ul>
                         <p style="text-align: center;">
                             <a href="https://app.icecreamtracker.co.nz/vendor.html" class="button">Get Started</a>
@@ -78,7 +78,7 @@ const emailTemplates = {
     }),
 
     trialExpiring: (vendorName, daysLeft) => ({
-        subject: `\u23f0 Your trial expires in ${daysLeft} days`,
+        subject: `⏰ Your trial expires in ${daysLeft} days`,
         html: `
             <!DOCTYPE html><html><head><style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
@@ -88,7 +88,7 @@ const emailTemplates = {
                 .button { display: inline-block; background: #FF6B9D; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
             </style></head>
             <body><div class="container">
-                <div class="header"><h1>\u23f0 Trial Ending Soon</h1></div>
+                <div class="header"><h1>⏰ Trial Ending Soon</h1></div>
                 <div class="content">
                     <p>Hi ${vendorName || 'there'},</p>
                     <p>Your trial expires in <strong>${daysLeft} days</strong>.</p>
@@ -99,7 +99,7 @@ const emailTemplates = {
     }),
 
     trialExpired: (vendorName) => ({
-        subject: '\u26a0\ufe0f Your trial has expired',
+        subject: '⚠️ Your trial has expired',
         html: `
             <!DOCTYPE html><html><head><style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
@@ -109,7 +109,7 @@ const emailTemplates = {
                 .button { display: inline-block; background: #f44336; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
             </style></head>
             <body><div class="container">
-                <div class="header"><h1>\u26a0\ufe0f Trial Expired</h1></div>
+                <div class="header"><h1>⚠️ Trial Expired</h1></div>
                 <div class="content">
                     <p>Hi ${vendorName || 'there'},</p>
                     <p>Your trial has ended. Upgrade to continue:</p>
@@ -120,7 +120,7 @@ const emailTemplates = {
     }),
 
     paymentFailed: (vendorName, amount) => ({
-        subject: '\u274c Payment Failed',
+        subject: '❌ Payment Failed',
         html: `
             <!DOCTYPE html><html><head><style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
@@ -130,7 +130,7 @@ const emailTemplates = {
                 .button { display: inline-block; background: #FF9800; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
             </style></head>
             <body><div class="container">
-                <div class="header"><h1>\u274c Payment Failed</h1></div>
+                <div class="header"><h1>❌ Payment Failed</h1></div>
                 <div class="content">
                     <p>Hi ${vendorName || 'there'},</p>
                     <p>We couldn't process your payment of $${amount}.</p>
@@ -141,7 +141,7 @@ const emailTemplates = {
     }),
 
     subscriptionActivated: (vendorName, plan) => ({
-        subject: '\ud83c\udf89 Welcome to Ice Cream Tracker!',
+        subject: '🎉 Welcome to Ice Cream Tracker!',
         html: `
             <!DOCTYPE html><html><head><style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
@@ -151,7 +151,7 @@ const emailTemplates = {
                 .button { display: inline-block; background: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
             </style></head>
             <body><div class="container">
-                <div class="header"><h1>\ud83c\udf89 Welcome!</h1></div>
+                <div class="header"><h1>🎉 Welcome!</h1></div>
                 <div class="content">
                     <p>Hi ${vendorName || 'there'},</p>
                     <p>Your <strong>${plan || 'subscription'}</strong> is now active!</p>
@@ -187,7 +187,7 @@ async function sendEmail(to, template) {
 // ============================================
 // 1. CREATE CHECKOUT SESSION
 // ============================================
-exports.createCheckoutSession = onRequest({ secrets: secretList }, (req, res) => {
+exports.createCheckoutSession = onRequest({ secrets: secretList, cors: true }, (req, res) => {
     cors(req, res, async () => {
         if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
         try {
@@ -234,7 +234,7 @@ exports.createCheckoutSession = onRequest({ secrets: secretList }, (req, res) =>
 // ============================================
 // 2. CREATE CUSTOMER PORTAL SESSION
 // ============================================
-exports.createPortalSession = onRequest({ secrets: secretList }, (req, res) => {
+exports.createPortalSession = onRequest({ secrets: secretList, cors: true }, (req, res) => {
     cors(req, res, async () => {
         if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
         try {
@@ -255,7 +255,7 @@ exports.createPortalSession = onRequest({ secrets: secretList }, (req, res) => {
 // ============================================
 // 3. CANCEL SUBSCRIPTION
 // ============================================
-exports.cancelSubscription = onRequest({ secrets: secretList }, (req, res) => {
+exports.cancelSubscription = onRequest({ secrets: secretList, cors: true }, (req, res) => {
     cors(req, res, async () => {
         if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
         try {
