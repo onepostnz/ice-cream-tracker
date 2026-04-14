@@ -157,6 +157,177 @@ const emailTemplates = {
                 </div>
             </div></body></html>
         `
+    }),
+
+    paymentSuccessReceipt: (vendorName, amount, plan, nextBillingDate) => ({
+        subject: '✅ Payment received - Ice Cream Tracker',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .header img { width: 60px; margin-bottom: 10px; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .receipt-box { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                    .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+                    .receipt-row:last-child { border-bottom: none; font-weight: bold; font-size: 16px; }
+                    .button { display: inline-block; background: #FF6B9D; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker" />
+                        <h1>Payment Received</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi ${vendorName || 'there'},</p>
+                        <p>Thanks — your payment was successful. Here's your receipt:</p>
+                        <div class="receipt-box">
+                            <div class="receipt-row"><span>Plan</span><span>${plan || 'Subscription'}</span></div>
+                            <div class="receipt-row"><span>Amount paid</span><span>$${amount} NZD</span></div>
+                            <div class="receipt-row"><span>Next billing date</span><span>${nextBillingDate}</span></div>
+                        </div>
+                        <p style="text-align: center;">
+                            <a href="https://app.icecreamtracker.co.nz/billing.html" class="button">View Billing</a>
+                        </p>
+                        <p>Cheers,<br>The Ice Cream Tracker Team</p>
+                    </div>
+                    <div class="footer"><p>Ice Cream Tracker NZ · <a href="https://app.icecreamtracker.co.nz">app.icecreamtracker.co.nz</a></p></div>
+                </div>
+            </body>
+            </html>
+        `
+    }),
+
+    subscriptionCancelled: (vendorName, accessEndsDate) => ({
+        subject: 'Your Ice Cream Tracker subscription has been cancelled',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .header img { width: 60px; margin-bottom: 10px; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .info-box { background: white; border-left: 4px solid #FF6B9D; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+                    .button { display: inline-block; background: #FF6B9D; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker" />
+                        <h1>Subscription Cancelled</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi ${vendorName || 'there'},</p>
+                        <p>We've confirmed your cancellation. You'll still have full access until your current billing period ends.</p>
+                        <div class="info-box">
+                            <strong>Access ends:</strong> ${accessEndsDate}
+                        </div>
+                        <p>After that date your listing will be removed from the map. You can resubscribe any time from the billing page.</p>
+                        <p style="text-align: center;">
+                            <a href="https://app.icecreamtracker.co.nz/billing.html" class="button">Resubscribe</a>
+                        </p>
+                        <p>Thanks for being part of Ice Cream Tracker NZ.<br>The Ice Cream Tracker Team</p>
+                    </div>
+                    <div class="footer"><p>Ice Cream Tracker NZ · <a href="https://app.icecreamtracker.co.nz">app.icecreamtracker.co.nz</a></p></div>
+                </div>
+            </body>
+            </html>
+        `
+    }),
+
+    renewalReminder: (vendorName, plan, amount, renewalDate) => ({
+        subject: `Your Ice Cream Tracker subscription renews in 3 days`,
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .header img { width: 60px; margin-bottom: 10px; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .info-box { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                    .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+                    .info-row:last-child { border-bottom: none; }
+                    .button { display: inline-block; background: #FF6B9D; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker" />
+                        <h1>Renewal Reminder</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi ${vendorName || 'there'},</p>
+                        <p>Just a heads-up — your subscription renews in <strong>3 days</strong>.</p>
+                        <div class="info-box">
+                            <div class="info-row"><span>Plan</span><span>${plan || 'Subscription'}</span></div>
+                            <div class="info-row"><span>Renewal amount</span><span>$${amount} NZD</span></div>
+                            <div class="info-row"><span>Renewal date</span><span>${renewalDate}</span></div>
+                        </div>
+                        <p>No action needed — your subscription will renew automatically. To update payment details or cancel, visit your billing page.</p>
+                        <p style="text-align: center;">
+                            <a href="https://app.icecreamtracker.co.nz/billing.html" class="button">Manage Billing</a>
+                        </p>
+                        <p>Cheers,<br>The Ice Cream Tracker Team</p>
+                    </div>
+                    <div class="footer"><p>Ice Cream Tracker NZ · <a href="https://app.icecreamtracker.co.nz">app.icecreamtracker.co.nz</a></p></div>
+                </div>
+            </body>
+            </html>
+        `
+    }),
+
+    adminNewSignup: (vendorName, vendorEmail, signupDate) => ({
+        subject: `New vendor signup: ${vendorName || vendorEmail}`,
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .info-box { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                    .info-row { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+                    .info-row:last-child { border-bottom: none; }
+                    .label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>New Vendor Signup</h1>
+                    </div>
+                    <div class="content">
+                        <p>A new vendor has signed up for Ice Cream Tracker NZ.</p>
+                        <div class="info-box">
+                            <div class="info-row"><div class="label">Business Name</div><div>${vendorName || '(not set)'}</div></div>
+                            <div class="info-row"><div class="label">Email</div><div>${vendorEmail}</div></div>
+                            <div class="info-row"><div class="label">Signup Date</div><div>${signupDate}</div></div>
+                        </div>
+                    </div>
+                    <div class="footer"><p>Ice Cream Tracker NZ internal notification</p></div>
+                </div>
+            </body>
+            </html>
+        `
     })
 };
 
@@ -355,23 +526,38 @@ async function handleSubscriptionUpdate(subscription, stripe) {
 async function handleSubscriptionDeleted(subscription) {
     const vendorId = subscription.metadata.vendorId;
     if (!vendorId) return;
+    const accessEndsDate = new Date(subscription.current_period_end * 1000)
+        .toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
     await db.collection('vendors').doc(vendorId).update({
         subscriptionStatus: 'cancelled',
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    console.log(`Subscription cancelled for vendor ${vendorId}`);
+    const vendorDoc = await db.collection('vendors').doc(vendorId).get();
+    const vendor = vendorDoc.data();
+    await sendEmail(vendor.email, emailTemplates.subscriptionCancelled(vendor.businessName, accessEndsDate));
+    console.log(`Subscription cancelled email sent to ${vendor.email}`);
 }
 
 async function handlePaymentSucceeded(invoice) {
     const customerId = invoice.customer;
     const vendorQuery = await db.collection('vendors').where('stripeCustomerId', '==', customerId).limit(1).get();
     if (vendorQuery.empty) return;
-    await vendorQuery.docs[0].ref.update({
+    const vendorDoc = vendorQuery.docs[0];
+    const vendor = vendorDoc.data();
+    const amount = (invoice.amount_paid / 100).toFixed(2);
+    const plan = PRICE_ID_TO_PLAN[invoice.lines?.data?.[0]?.price?.id] || vendor.subscriptionPlan || 'Subscription';
+    const planNames = { starter: 'Starter Plan', professional: 'Professional Plan', enterprise: 'Enterprise Plan' };
+    const planLabel = planNames[plan] || plan;
+    const nextBillingDate = vendor.currentPeriodEnd
+        ? vendor.currentPeriodEnd.toDate().toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })
+        : 'your next billing date';
+    await vendorDoc.ref.update({
         lastPaymentAt: admin.firestore.FieldValue.serverTimestamp(),
         lastPaymentAmount: invoice.amount_paid / 100,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    console.log(`Payment succeeded for customer ${customerId}`);
+    await sendEmail(vendor.email, emailTemplates.paymentSuccessReceipt(vendor.businessName, amount, planLabel, nextBillingDate));
+    console.log(`Payment receipt email sent to ${vendor.email}`);
 }
 
 async function handlePaymentFailed(invoice) {
@@ -439,14 +625,51 @@ exports.sendTrialReminders = onSchedule({ schedule: '0 9 * * *', timeZone: 'Paci
 });
 
 // ============================================
-// 7. SEND WELCOME EMAIL ON VENDOR DOCUMENT CREATION
+// 7. RENEWAL REMINDERS (3 days before next billing)
+// ============================================
+exports.sendRenewalReminders = onSchedule({ schedule: '0 9 * * *', timeZone: 'Pacific/Auckland', secrets: secretList }, async (event) => {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+    const windowStart = admin.firestore.Timestamp.fromMillis(threeDaysFromNow.getTime() - (12 * 60 * 60 * 1000));
+    const windowEnd = admin.firestore.Timestamp.fromMillis(threeDaysFromNow.getTime() + (12 * 60 * 60 * 1000));
+
+    const activeVendors = await db.collection('vendors')
+        .where('subscriptionStatus', '==', 'active')
+        .where('currentPeriodEnd', '>=', windowStart)
+        .where('currentPeriodEnd', '<=', windowEnd)
+        .get();
+
+    const planNames = { starter: 'Starter Plan', professional: 'Professional Plan', enterprise: 'Enterprise Plan' };
+    const planAmounts = { starter: '29.00', professional: '49.00', enterprise: '99.00' };
+
+    for (const doc of activeVendors.docs) {
+        const vendor = doc.data();
+        const renewalDate = vendor.currentPeriodEnd.toDate()
+            .toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
+        const planLabel = planNames[vendor.subscriptionPlan] || vendor.subscriptionPlan || 'Subscription';
+        const amount = planAmounts[vendor.subscriptionPlan] || '—';
+        await sendEmail(vendor.email, emailTemplates.renewalReminder(vendor.businessName, planLabel, amount, renewalDate));
+        console.log(`Renewal reminder sent to ${vendor.email}`);
+    }
+    console.log(`Sent ${activeVendors.size} renewal reminder(s)`);
+});
+
+// ============================================
+// 8. SEND WELCOME EMAIL + ADMIN ALERT ON VENDOR DOCUMENT CREATION
 // ============================================
 exports.onVendorCreated = onDocumentCreated(
     { document: 'vendors/{vendorId}', secrets: secretList },
     async (event) => {
         const vendor = event.data.data();
         if (!vendor?.email) return;
-        await sendEmail(vendor.email, emailTemplates.welcomeTrial(vendor.businessName));
-        console.log(`Welcome email sent to ${vendor.email}`);
+
+        const signupDate = new Date().toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        await Promise.all([
+            sendEmail(vendor.email, emailTemplates.welcomeTrial(vendor.businessName)),
+            sendEmail('sam@onepost.co.nz', emailTemplates.adminNewSignup(vendor.businessName, vendor.email, signupDate))
+        ]);
+
+        console.log(`Welcome email sent to ${vendor.email}, admin notified`);
     }
 );
