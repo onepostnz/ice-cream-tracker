@@ -1754,9 +1754,13 @@
             const email = document.getElementById('email').value.trim();
             if (!email) { showError('Enter your email address first.'); return; }
             try {
-                await auth.sendPasswordResetEmail(email);
+                await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendPasswordReset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
                 const el = document.getElementById('errorMessage');
-                el.textContent = '✓ Password reset email sent. Check your inbox.';
+                el.textContent = '✓ If that email is registered, a reset link has been sent. Check your inbox.';
                 el.style.background = '#d4edda';
                 el.style.color = '#155724';
                 el.style.display = 'block';
@@ -1764,9 +1768,9 @@
                     el.style.display = 'none';
                     el.style.background = '#f8d7da';
                     el.style.color = '#721c24';
-                }, 5000);
+                }, 6000);
             } catch {
-                showError('Could not send reset email. Please check the email address.');
+                showError('Could not send reset email. Please try again.');
             }
         }
 

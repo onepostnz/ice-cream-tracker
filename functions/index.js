@@ -328,6 +328,43 @@ const emailTemplates = {
             </body>
             </html>
         `
+    }),
+
+    passwordReset: (resetLink) => ({
+        subject: '🔑 Reset your Ice Cream Tracker password',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                    .button { display: inline-block; background: #FF6B9D; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 24px 0; font-size: 16px; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                    .note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; border-radius: 4px; font-size: 14px; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker NZ" style="width:60px;height:60px;border-radius:12px;margin-bottom:12px;">
+                        <h1 style="margin:0;font-size:24px;">Reset your password</h1>
+                    </div>
+                    <div class="content">
+                        <p>We received a request to reset your Ice Cream Tracker password. Click the button below to choose a new one:</p>
+                        <div style="text-align:center;">
+                            <a href="${resetLink}" class="button">Reset My Password</a>
+                        </div>
+                        <p style="font-size:14px;color:#666;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password won't change.</p>
+                        <div class="note">If the button doesn't work, copy and paste this link into your browser:<br><span style="word-break:break-all;color:#2B4C7E;">${resetLink}</span></div>
+                    </div>
+                    <div class="footer"><p>Ice Cream Tracker NZ · <a href="https://app.icecreamtracker.co.nz" style="color:#FF6B9D;">app.icecreamtracker.co.nz</a></p></div>
+                </div>
+            </body>
+            </html>
+        `
     })
 };
 
@@ -673,3 +710,28 @@ exports.onVendorCreated = onDocumentCreated(
         console.log(`Welcome email sent to ${vendor.email}, admin notified`);
     }
 );
+
+// ============================================
+// 9. SEND PASSWORD RESET EMAIL VIA SMTP2GO
+// ============================================
+exports.sendPasswordReset = onRequest({ secrets: secretList }, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
+
+    const { email } = req.body;
+    if (!email) { res.status(400).json({ error: 'Email required' }); return; }
+
+    try {
+        const resetLink = await admin.auth().generatePasswordResetLink(email);
+        await sendEmail(email, emailTemplates.passwordReset(resetLink));
+        console.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+        // Log the error but always return success to avoid revealing whether an email is registered
+        console.error('Password reset error:', error.message);
+    }
+
+    res.json({ success: true });
+});
