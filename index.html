@@ -377,7 +377,7 @@
         <div class="stats">
             <div class="stat">
                 <div class="stat-number" id="vanCount">0</div>
-                <div>Live Vans</div>
+                <div>Live Now</div>
             </div>
             <div class="stat">
                 <div class="stat-number" id="eventCount">0</div>
@@ -563,25 +563,35 @@
                 });
         }
 
+        function getVendorMarkerIcon(van) {
+            const isShop = van.businessType === 'shop';
+            const emoji = isShop ? '\uD83C\uDFEA' : '\uD83C\uDF66';
+            const color = isShop ? '#FF6B9D' : '#2B4C7E';
+            const svg = `<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="20" fill="${color}" stroke="white" stroke-width="3"/><text x="24" y="30" font-size="20" text-anchor="middle">${emoji}</text></svg>`;
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
+
         function updateVanMarker(id, van) {
             const position = { lat: van.latitude, lng: van.longitude };
-            
+            const isShop = van.businessType === 'shop';
+
             if (vanMarkers[id]) {
                 vanMarkers[id].setPosition(position);
+                vanMarkers[id].vanData = van;
             } else {
                 const marker = new google.maps.Marker({
                     position: position,
                     map: map,
                     icon: {
-                        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9IiMyQjRDN0UiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMyIvPjx0ZXh0IHg9IjI0IiB5PSIzMCIgZm9udC1zaXplPSIyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+NpjwvdGV4dD48L3N2Zz4=',
+                        url: getVendorMarkerIcon(van),
                         scaledSize: new google.maps.Size(48, 48),
                         anchor: new google.maps.Point(24, 24)
                     },
-                    title: van.name || 'Ice Cream Van',
+                    title: van.name || (isShop ? 'Ice Cream Shop' : 'Ice Cream Van'),
                     animation: google.maps.Animation.DROP,
                     zIndex: 100
                 });
-                
+
                 marker.vanData = van;
                 vanMarkers[id] = marker;
             }
@@ -669,16 +679,17 @@
             const events = items.filter(item => item.type === 'event');
             
             vans.forEach(item => {
+                const isShop = item.data.businessType === 'shop';
                 html += `
-                    <div class="van-card" onclick="zoomToLocation(${item.position.lat()}, ${item.position.lng()})">
+                    <div class="van-card" style="${isShop ? 'background:#fff0f7; border-color:#FF6B9D;' : ''}" onclick="zoomToLocation(${item.position.lat()}, ${item.position.lng()})">
                         <div class="event-card-header">
-                            <div class="event-icon">🚐</div>
+                            <div class="event-icon">${isShop ? '🏪' : '🚐'}</div>
                             <div class="event-info">
-                                <div class="event-name">${item.data.name || 'Ice Cream Van'}</div>
-                                <div class="event-details">${item.data.type || 'Traditional Ice Cream'}</div>
+                                <div class="event-name">${item.data.name || (isShop ? 'Ice Cream Shop' : 'Ice Cream Van')}</div>
+                                <div class="event-details">${item.data.type || (isShop ? 'Ice Cream Shop' : 'Traditional Ice Cream')}</div>
                             </div>
                         </div>
-                        <div class="van-badge">🟢 LIVE NOW</div>
+                        <div class="van-badge" style="${isShop ? 'background:#FF6B9D;' : ''}">${isShop ? '🏪 OPEN NOW' : '🟢 LIVE NOW'}</div>
                     </div>
                 `;
             });

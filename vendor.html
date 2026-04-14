@@ -687,6 +687,51 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .account-edit-row {
+            padding: 16px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .account-edit-row:last-child { border-bottom: none; }
+        .account-edit-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 8px;
+        }
+        .account-edit-field {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .account-edit-field input,
+        .account-edit-field select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            outline: none;
+            background: #fdfbfc;
+            font-family: inherit;
+        }
+        .account-edit-field input:focus,
+        .account-edit-field select:focus { border-color: #2B4C7E; }
+        .account-edit-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 6px;
+        }
+        #accountMsg {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -719,7 +764,11 @@
                 
                 <button type="submit" class="btn btn-primary" id="authButton">Login</button>
             </form>
-            
+
+            <p id="forgotPasswordLink" style="text-align:center; margin-top:14px; font-size:14px;">
+                <a href="#" onclick="handleForgotPassword(event)" style="color:#2B4C7E; text-decoration:none; font-weight:600;">Forgot password?</a>
+            </p>
+
             <div class="auth-toggle">
                 <span id="authToggleText">Don't have an account?</span>
                 <a href="#" id="authToggleLink">Sign up</a>
@@ -904,23 +953,54 @@
                     <!-- Account Information Card -->
                     <div class="card">
                         <h2>👤 Account Information</h2>
-                        <div class="account-info">
-                            <div class="info-row">
-                                <span class="info-label">Email</span>
-                                <span class="info-value" id="accountEmail">-</span>
+                        <div id="accountMsg"></div>
+
+                        <div class="account-edit-row">
+                            <div class="account-edit-label">Business Name</div>
+                            <div class="account-edit-field">
+                                <input type="text" id="editBusinessName" placeholder="Your business name">
+                                <button class="btn btn-primary btn-small" onclick="saveBusinessName()">Save</button>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Business Name</span>
-                                <span class="info-value" id="accountBusinessName">-</span>
+                        </div>
+
+                        <div class="account-edit-row">
+                            <div class="account-edit-label">Business Type</div>
+                            <div class="account-edit-field">
+                                <select id="editBusinessType">
+                                    <option value="van">🚐 Ice Cream Van</option>
+                                    <option value="shop">🏪 Ice Cream Shop</option>
+                                </select>
+                                <button class="btn btn-primary btn-small" onclick="saveBusinessType()">Save</button>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">Account Created</span>
-                                <span class="info-value" id="accountCreated">-</span>
+                            <p class="account-edit-hint">Determines your icon on the customer map.</p>
+                        </div>
+
+                        <div class="account-edit-row">
+                            <div class="account-edit-label">Email Address</div>
+                            <div class="account-edit-field">
+                                <input type="email" id="editEmail" placeholder="your@email.com">
+                                <button class="btn btn-primary btn-small" onclick="saveEmail()">Save</button>
                             </div>
-                            <div class="info-row" id="stripeCustomerRow" style="display: none;">
-                                <span class="info-label">Stripe Customer ID</span>
-                                <span class="info-value" id="accountStripeCustomer">-</span>
+                            <p class="account-edit-hint" id="emailHint">A verification link will be sent to your new address.</p>
+                        </div>
+
+                        <div class="account-edit-row">
+                            <div class="account-edit-label">Change Password</div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <input type="password" id="newPassword" placeholder="New password (min 8 characters)" style="padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:14px; outline:none; font-family:inherit; transition:border-color 0.3s;">
+                                <input type="password" id="confirmNewPassword" placeholder="Confirm new password" style="padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:14px; outline:none; font-family:inherit; transition:border-color 0.3s;">
+                                <button class="btn btn-primary btn-small" style="align-self:flex-start;" onclick="savePassword()">Update Password</button>
                             </div>
+                            <p class="account-edit-hint">You may be prompted to log in again.</p>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">Account Created</span>
+                            <span class="info-value" id="accountCreated">-</span>
+                        </div>
+                        <div class="info-row" id="stripeCustomerRow" style="display:none;">
+                            <span class="info-label">Stripe Customer</span>
+                            <span class="info-value" id="accountStripeCustomer">-</span>
                         </div>
                     </div>
                     
@@ -1039,19 +1119,21 @@
         document.getElementById('authToggleLink').addEventListener('click', (e) => {
             e.preventDefault();
             isSignUp = !isSignUp;
-            
+
             if (isSignUp) {
                 document.getElementById('authTitle').textContent = 'Vendor Sign Up';
                 document.getElementById('authButton').textContent = 'Sign Up';
                 document.getElementById('businessNameGroup').style.display = 'block';
                 document.getElementById('authToggleText').textContent = 'Already have an account?';
                 document.getElementById('authToggleLink').textContent = 'Login';
+                document.getElementById('forgotPasswordLink').style.display = 'none';
             } else {
                 document.getElementById('authTitle').textContent = 'Vendor Login';
                 document.getElementById('authButton').textContent = 'Login';
                 document.getElementById('businessNameGroup').style.display = 'none';
                 document.getElementById('authToggleText').textContent = "Don't have an account?";
                 document.getElementById('authToggleLink').textContent = 'Sign up';
+                document.getElementById('forgotPasswordLink').style.display = 'block';
             }
         });
 
@@ -1115,9 +1197,10 @@
             localStorage.setItem('icecream_live_timestamp_' + currentUser.uid, Date.now().toString());
 
             // Update UI
+            const _isShop = currentVendor?.businessType === 'shop';
             document.getElementById('liveIndicator').classList.add('active');
-            document.getElementById('liveStatusText').textContent = '🟢 Live Now';
-            document.getElementById('liveStatusDesc').textContent = 'Customers can see you on the map';
+            document.getElementById('liveStatusText').textContent = _isShop ? '🟢 Open Now' : '🟢 Live Now';
+            document.getElementById('liveStatusDesc').textContent = _isShop ? 'Customers can see your shop on the map' : 'Customers can see you on the map';
 
             // Start GPS tracking
             gpsWatchId = navigator.geolocation.watchPosition(
@@ -1129,10 +1212,12 @@
                     };
 
                     // Save to Realtime Database for live tracking
+                    const isShop = currentVendor?.businessType === 'shop';
                     rtdb.ref('vans/' + currentUser.uid).set({
                         ...location,
-                        name: 'Ice Cream Van', // TODO: Get from vendor profile
-                        type: 'Traditional Ice Cream',
+                        name: currentVendor?.businessName || (isShop ? 'Ice Cream Shop' : 'Ice Cream Van'),
+                        type: isShop ? 'Ice Cream Shop' : 'Traditional Ice Cream',
+                        businessType: currentVendor?.businessType || 'van',
                         vendorId: currentUser.uid
                     });
                 },
@@ -1160,7 +1245,9 @@
             // Update UI
             document.getElementById('liveIndicator').classList.remove('active');
             document.getElementById('liveStatusText').textContent = 'Offline';
-            document.getElementById('liveStatusDesc').textContent = 'Turn on to appear on customer map';
+            document.getElementById('liveStatusDesc').textContent = currentVendor?.businessType === 'shop'
+                ? 'Turn on to show as open on the customer map'
+                : 'Turn on to appear on customer map';
 
             // Stop GPS tracking
             if (gpsWatchId !== null) {
@@ -1394,7 +1481,14 @@
                 
                 // Apply feature locks based on status
                 applyFeatureLocks(currentVendor);
-                
+
+                // Update live toggle description based on business type
+                if (!isLive) {
+                    document.getElementById('liveStatusDesc').textContent = currentVendor.businessType === 'shop'
+                        ? 'Turn on to show as open on the customer map'
+                        : 'Turn on to appear on customer map';
+                }
+
             } catch (error) {
                 console.error('Error checking trial status:', error);
             }
@@ -1618,24 +1712,153 @@
                 }
             }
             
-            // Account information
-            document.getElementById('accountEmail').textContent = currentUser.email;
-            document.getElementById('accountBusinessName').textContent = currentVendor.businessName || '-';
-            
+            // Account information — populate editable fields
+            document.getElementById('editEmail').value = currentUser.email;
+            document.getElementById('editBusinessName').value = currentVendor.businessName || '';
+            document.getElementById('editBusinessType').value = currentVendor.businessType || 'van';
+
+            // Google users can't change email/password here
+            const isGoogleUser = currentUser.providerData.some(p => p.providerId === 'google.com');
+            if (isGoogleUser) {
+                document.getElementById('editEmail').disabled = true;
+                document.getElementById('editEmail').style.opacity = '0.6';
+                document.querySelector('[onclick="saveEmail()"]').disabled = true;
+                document.getElementById('emailHint').textContent = 'Email is managed by your Google account.';
+                document.getElementById('newPassword').disabled = true;
+                document.getElementById('newPassword').placeholder = 'Not available for Google accounts';
+                document.getElementById('confirmNewPassword').disabled = true;
+                document.querySelector('[onclick="savePassword()"]').disabled = true;
+            }
+
             if (currentVendor.createdAt) {
                 const created = currentVendor.createdAt.toDate();
                 document.getElementById('accountCreated').textContent = created.toLocaleDateString();
             }
-            
-            // Stripe customer ID (for paid users)
+
             if (currentVendor.stripeCustomerId) {
                 document.getElementById('accountStripeCustomer').textContent = currentVendor.stripeCustomerId;
                 document.getElementById('stripeCustomerRow').style.display = 'flex';
             }
-            
+
             // Show billing management for paid users
             if (currentVendor.subscriptionStatus === 'active') {
                 document.getElementById('billingManagementCard').style.display = 'block';
+            }
+        }
+        // ============================================
+        // FORGOT PASSWORD
+        // ============================================
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            if (!email) { showError('Enter your email address first.'); return; }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                const el = document.getElementById('errorMessage');
+                el.textContent = '✓ Password reset email sent. Check your inbox.';
+                el.style.background = '#d4edda';
+                el.style.color = '#155724';
+                el.style.display = 'block';
+                setTimeout(() => {
+                    el.style.display = 'none';
+                    el.style.background = '#f8d7da';
+                    el.style.color = '#721c24';
+                }, 5000);
+            } catch {
+                showError('Could not send reset email. Please check the email address.');
+            }
+        }
+
+        // ============================================
+        // ACCOUNT MANAGEMENT
+        // ============================================
+
+        function showAccountMsg(msg, isSuccess) {
+            const el = document.getElementById('accountMsg');
+            el.textContent = msg;
+            el.style.background = isSuccess ? '#d4edda' : '#f8d7da';
+            el.style.color = isSuccess ? '#155724' : '#721c24';
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 4000);
+        }
+
+        async function saveBusinessName() {
+            const name = document.getElementById('editBusinessName').value.trim();
+            if (!name) { showAccountMsg('Business name cannot be empty.', false); return; }
+            try {
+                await db.collection('vendors').doc(currentUser.uid).update({
+                    businessName: name,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentVendor.businessName = name;
+                showAccountMsg('Business name updated!', true);
+            } catch {
+                showAccountMsg('Failed to update. Please try again.', false);
+            }
+        }
+
+        async function saveBusinessType() {
+            const type = document.getElementById('editBusinessType').value;
+            try {
+                await db.collection('vendors').doc(currentUser.uid).update({
+                    businessType: type,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentVendor.businessType = type;
+                // Update live toggle description immediately
+                if (!isLive) {
+                    document.getElementById('liveStatusDesc').textContent = type === 'shop'
+                        ? 'Turn on to show as open on the customer map'
+                        : 'Turn on to appear on customer map';
+                }
+                showAccountMsg('Business type updated!', true);
+            } catch {
+                showAccountMsg('Failed to update. Please try again.', false);
+            }
+        }
+
+        async function saveEmail() {
+            const email = document.getElementById('editEmail').value.trim();
+            if (!email) { showAccountMsg('Email cannot be empty.', false); return; }
+            if (email === currentUser.email) { showAccountMsg('That is already your current email.', false); return; }
+            try {
+                await currentUser.updateEmail(email);
+                await db.collection('vendors').doc(currentUser.uid).update({
+                    email: email,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentVendor.email = email;
+                document.getElementById('userEmail').textContent = email;
+                showAccountMsg('Email updated successfully!', true);
+            } catch (e) {
+                if (e.code === 'auth/requires-recent-login') {
+                    showAccountMsg('Please log out and log back in, then try again.', false);
+                } else if (e.code === 'auth/email-already-in-use') {
+                    showAccountMsg('That email is already in use by another account.', false);
+                } else {
+                    showAccountMsg('Failed to update email: ' + e.message, false);
+                }
+            }
+        }
+
+        async function savePassword() {
+            const newPwd = document.getElementById('newPassword').value;
+            const confirmPwd = document.getElementById('confirmNewPassword').value;
+            if (!newPwd) { showAccountMsg('Please enter a new password.', false); return; }
+            if (newPwd.length < 8) { showAccountMsg('Password must be at least 8 characters.', false); return; }
+            if (newPwd !== confirmPwd) { showAccountMsg('Passwords do not match.', false); return; }
+            try {
+                await currentUser.updatePassword(newPwd);
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmNewPassword').value = '';
+                showAccountMsg('Password updated successfully!', true);
+            } catch (e) {
+                if (e.code === 'auth/requires-recent-login') {
+                    showAccountMsg('Please log out and log back in, then try again.', false);
+                } else {
+                    showAccountMsg('Failed to update password: ' + e.message, false);
+                }
             }
         }
     </script>

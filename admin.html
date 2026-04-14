@@ -300,6 +300,16 @@
             color: #F57F17;
         }
 
+        .badge.van {
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+
+        .badge.shop {
+            background: #FCE4EC;
+            color: #C62828;
+        }
+
         /* Buttons */
         .btn {
             padding: 10px 20px;
@@ -535,6 +545,7 @@
                                     <tr>
                                         <th>Business Name</th>
                                         <th>Email</th>
+                                        <th>Type</th>
                                         <th>Phone</th>
                                         <th>Status</th>
                                         <th>Plan</th>
@@ -805,9 +816,14 @@
                     ? Math.max(0, Math.ceil((new Date(vendor.trialEndsAt) - new Date()) / (1000 * 60 * 60 * 24)))
                     : 'N/A';
 
+                const typeBadge = vendor.businessType === 'shop'
+                    ? '<span class="badge shop">🏪 Shop</span>'
+                    : '<span class="badge van">🚐 Van</span>';
+
                 tr.innerHTML = `
                     <td><strong>${vendor.businessName || 'N/A'}</strong></td>
                     <td>${vendor.email}</td>
+                    <td>${typeBadge}</td>
                     <td>${vendor.phone || 'N/A'}</td>
                     <td>${statusBadge}</td>
                     <td>${planBadge}</td>
