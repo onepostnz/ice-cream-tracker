@@ -186,7 +186,7 @@ async function sendEmail(to, template) {
 // ============================================
 // 1. CREATE CHECKOUT SESSION
 // ============================================
-exports.createCheckoutSession = onRequest({ secrets: secretList, cors: true }, async (req, res) => {
+exports.createCheckoutSession = onRequest({ secrets: secretList }, async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -235,7 +235,7 @@ exports.createCheckoutSession = onRequest({ secrets: secretList, cors: true }, a
 // ============================================
 // 2. CREATE CUSTOMER PORTAL SESSION
 // ============================================
-exports.createPortalSession = onRequest({ secrets: secretList, cors: true }, async (req, res) => {
+exports.createPortalSession = onRequest({ secrets: secretList }, async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -258,7 +258,7 @@ exports.createPortalSession = onRequest({ secrets: secretList, cors: true }, asy
 // ============================================
 // 3. CANCEL SUBSCRIPTION
 // ============================================
-exports.cancelSubscription = onRequest({ secrets: secretList, cors: true }, async (req, res) => {
+exports.cancelSubscription = onRequest({ secrets: secretList }, async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
