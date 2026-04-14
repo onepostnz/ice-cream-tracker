@@ -4,7 +4,6 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { beforeUserCreated } = require('firebase-functions/v2/identity');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const cors = require('cors')({ origin: true });
 const nodemailer = require('nodemailer');
 
 admin.initializeApp();
@@ -187,91 +186,97 @@ async function sendEmail(to, template) {
 // ============================================
 // 1. CREATE CHECKOUT SESSION
 // ============================================
-exports.createCheckoutSession = onRequest({ secrets: secretList, cors: true }, (req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-        try {
-            const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
-            const { priceId, vendorId, successUrl, cancelUrl } = req.body;
+exports.createCheckoutSession = onRequest({ secrets: secretList, cors: true }, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
+    try {
+        const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
+        const { priceId, vendorId, successUrl, cancelUrl } = req.body;
 
-            const vendorDoc = await db.collection('vendors').doc(vendorId).get();
-            if (!vendorDoc.exists) return res.status(404).json({ error: 'Vendor not found' });
+        const vendorDoc = await db.collection('vendors').doc(vendorId).get();
+        if (!vendorDoc.exists) { res.status(404).json({ error: 'Vendor not found' }); return; }
 
-            const vendor = vendorDoc.data();
-            let customerId = vendor.stripeCustomerId;
+        const vendor = vendorDoc.data();
+        let customerId = vendor.stripeCustomerId;
 
-            if (!customerId) {
-                const customer = await stripe.customers.create({
-                    email: vendor.email,
-                    metadata: { vendorId, businessName: vendor.businessName || '' }
-                });
-                customerId = customer.id;
-                await db.collection('vendors').doc(vendorId).update({
-                    stripeCustomerId: customerId,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-            }
-
-            const session = await stripe.checkout.sessions.create({
-                customer: customerId,
-                mode: 'subscription',
-                payment_method_types: ['card'],
-                line_items: [{ price: priceId, quantity: 1 }],
-                success_url: successUrl,
-                cancel_url: cancelUrl,
-                metadata: { vendorId },
-                subscription_data: { metadata: { vendorId } }
+        if (!customerId) {
+            const customer = await stripe.customers.create({
+                email: vendor.email,
+                metadata: { vendorId, businessName: vendor.businessName || '' }
             });
-
-            return res.json({ sessionId: session.id });
-        } catch (error) {
-            console.error('Error creating checkout session:', error);
-            return res.status(500).json({ error: error.message });
+            customerId = customer.id;
+            await db.collection('vendors').doc(vendorId).update({
+                stripeCustomerId: customerId,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
         }
-    });
+
+        const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            metadata: { vendorId },
+            subscription_data: { metadata: { vendorId } }
+        });
+
+        res.json({ sessionId: session.id });
+    } catch (error) {
+        console.error('Error creating checkout session:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============================================
 // 2. CREATE CUSTOMER PORTAL SESSION
 // ============================================
-exports.createPortalSession = onRequest({ secrets: secretList, cors: true }, (req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-        try {
-            const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
-            const { customerId, returnUrl } = req.body;
-            const session = await stripe.billingPortal.sessions.create({
-                customer: customerId,
-                return_url: returnUrl
-            });
-            return res.json({ url: session.url });
-        } catch (error) {
-            console.error('Error creating portal session:', error);
-            return res.status(500).json({ error: error.message });
-        }
-    });
+exports.createPortalSession = onRequest({ secrets: secretList, cors: true }, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
+    try {
+        const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
+        const { customerId, returnUrl } = req.body;
+        const session = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: returnUrl
+        });
+        res.json({ url: session.url });
+    } catch (error) {
+        console.error('Error creating portal session:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============================================
 // 3. CANCEL SUBSCRIPTION
 // ============================================
-exports.cancelSubscription = onRequest({ secrets: secretList, cors: true }, (req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-        try {
-            const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
-            const { vendorId, subscriptionId } = req.body;
-            await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
-            await db.collection('vendors').doc(vendorId).update({
-                cancelAtPeriodEnd: true,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-            return res.json({ success: true });
-        } catch (error) {
-            console.error('Error cancelling subscription:', error);
-            return res.status(500).json({ error: error.message });
-        }
-    });
+exports.cancelSubscription = onRequest({ secrets: secretList, cors: true }, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
+    try {
+        const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
+        const { vendorId, subscriptionId } = req.body;
+        await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        await db.collection('vendors').doc(vendorId).update({
+            cancelAtPeriodEnd: true,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error cancelling subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============================================
