@@ -1,7 +1,6 @@
 const { onRequest } = require('firebase-functions/v2/https');
-const { onCall } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { beforeUserCreated } = require('firebase-functions/v2/identity');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
@@ -440,26 +439,14 @@ exports.sendTrialReminders = onSchedule({ schedule: '0 9 * * *', timeZone: 'Paci
 });
 
 // ============================================
-// 7. AUTO-CREATE VENDOR ON SIGNUP
+// 7. SEND WELCOME EMAIL ON VENDOR DOCUMENT CREATION
 // ============================================
-exports.onUserCreate = onRequest({ secrets: secretList }, async (req, res) => {
-    // This is triggered via Auth trigger - keeping as onRequest for v2 compatibility
-    const user = req.body;
-    const trialStart = new Date();
-    const trialEnd = new Date(trialStart.getTime() + (45 * 24 * 60 * 60 * 1000));
-
-    await db.collection('vendors').doc(user.uid).set({
-        uid: user.uid,
-        email: user.email,
-        subscriptionStatus: 'trial',
-        trialStartedAt: admin.firestore.Timestamp.fromDate(trialStart),
-        trialEndsAt: admin.firestore.Timestamp.fromDate(trialEnd),
-        truckCount: 0,
-        eventCount: 0,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    await sendEmail(user.email, emailTemplates.welcomeTrial());
-    console.log(`Created vendor document and sent welcome email for ${user.email}`);
-    res.json({ success: true });
-});
+exports.onVendorCreated = onDocumentCreated(
+    { document: 'vendors/{vendorId}', secrets: secretList },
+    async (event) => {
+        const vendor = event.data.data();
+        if (!vendor?.email) return;
+        await sendEmail(vendor.email, emailTemplates.welcomeTrial(vendor.businessName));
+        console.log(`Welcome email sent to ${vendor.email}`);
+    }
+);
