@@ -1754,24 +1754,30 @@
             const email = document.getElementById('email').value.trim();
             if (!email) { showError('Enter your email address first.'); return; }
             try {
-                await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendPasswordReset', {
+                const resp = await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendPasswordReset', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 });
-                const el = document.getElementById('errorMessage');
-                el.textContent = '✓ If that email is registered, a reset link has been sent. Check your inbox.';
-                el.style.background = '#d4edda';
-                el.style.color = '#155724';
-                el.style.display = 'block';
-                setTimeout(() => {
-                    el.style.display = 'none';
-                    el.style.background = '#f8d7da';
-                    el.style.color = '#721c24';
-                }, 6000);
+                if (!resp.ok) throw new Error('Function error');
             } catch {
-                showError('Could not send reset email. Please try again.');
+                // Fall back to Firebase Auth while function is not deployed
+                try {
+                    await auth.sendPasswordResetEmail(email);
+                } catch {
+                    // Swallow — show success regardless to avoid revealing email existence
+                }
             }
+            const el = document.getElementById('errorMessage');
+            el.textContent = '✓ If that email is registered, a reset link has been sent. Check your inbox (and spam folder).';
+            el.style.background = '#d4edda';
+            el.style.color = '#155724';
+            el.style.display = 'block';
+            setTimeout(() => {
+                el.style.display = 'none';
+                el.style.background = '#f8d7da';
+                el.style.color = '#721c24';
+            }, 7000);
         }
 
         // ============================================

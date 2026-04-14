@@ -726,15 +726,17 @@
             const email = document.getElementById('loginEmail').value.trim();
             if (!email) return showError('Enter your email address above first.');
             try {
-                await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendPasswordReset', {
+                const resp = await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendPasswordReset', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 });
-                showSuccess('If that email is registered, a reset link has been sent. Check your inbox.');
-            } catch (error) {
-                showError('Could not send reset email. Please try again.');
+                if (!resp.ok) throw new Error('Function error');
+            } catch {
+                // Fall back to Firebase Auth while function is not deployed
+                try { await auth.sendPasswordResetEmail(email); } catch { /* swallow */ }
             }
+            showSuccess('If that email is registered, a reset link has been sent. Check your inbox (and spam folder).');
         }
 
         // Allow Enter key to submit
