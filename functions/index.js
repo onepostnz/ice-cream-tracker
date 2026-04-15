@@ -10,11 +10,10 @@ const db = admin.firestore();
 
 // Define secrets
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
-const SMTP_USERNAME = defineSecret('SMTP_USERNAME');
 const SMTP_PASSWORD = defineSecret('SMTP_PASSWORD');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-const secretList = [STRIPE_SECRET_KEY, SMTP_USERNAME, SMTP_PASSWORD, STRIPE_WEBHOOK_SECRET];
+const secretList = [STRIPE_SECRET_KEY, SMTP_PASSWORD, STRIPE_WEBHOOK_SECRET];
 
 // ============================================
 // SMTP2GO EMAIL CONFIGURATION
@@ -22,11 +21,11 @@ const secretList = [STRIPE_SECRET_KEY, SMTP_USERNAME, SMTP_PASSWORD, STRIPE_WEBH
 
 const createEmailTransporter = () => {
     return nodemailer.createTransporter({
-        host: 'mail.smtp2go.com',
+        host: 'mail-au.smtp2go.com',
         port: 2525,
         secure: false,
         auth: {
-            user: SMTP_USERNAME.value(),
+            user: 'Ice Cream Tracker',
             pass: SMTP_PASSWORD.value()
         }
     });
