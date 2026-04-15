@@ -20,7 +20,7 @@ const secretList = [STRIPE_SECRET_KEY, SMTP_PASSWORD, STRIPE_WEBHOOK_SECRET];
 // ============================================
 
 const createEmailTransporter = () => {
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
         host: 'mail-au.smtp2go.com',
         port: 2525,
         secure: false,
