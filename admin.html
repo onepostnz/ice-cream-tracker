@@ -647,11 +647,414 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <script>
-    // ─────────────────────────────────────────────
-    // PART 2: Firebase init, auth, data loading
-    // PART 3: Vendor actions, rendering, helpers
-    // (added in subsequent commits)
-    // ─────────────────────────────────────────────
+    // ══════════════════════════════════════════════
+    // CONFIG & INIT
+    // ══════════════════════════════════════════════
+    const firebaseConfig = {
+        apiKey: "AIzaSyAt8IUbIAf8Vf0Nse4lZa5uhpvEqdttNCQ",
+        authDomain: "icecreamtracker-9625b.firebaseapp.com",
+        projectId: "icecreamtracker-9625b",
+        storageBucket: "icecreamtracker-9625b.firebasestorage.app",
+        messagingSenderId: "468582467639",
+        appId: "1:468582467639:web:7d4e7a16b5d8e4c0f3e8d2"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    const ADMIN_EMAILS   = ['admin@icecreamtracker.co.nz', 'sam@onepost.co.nz'];
+    const MAGIC_LINK_URL = 'https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendMagicLink';
+
+    const PRICING_PLANS = {
+        starter:      { name: 'Starter',      price: 29 },
+        professional: { name: 'Professional', price: 49 },
+        enterprise:   { name: 'Enterprise',   price: 99 }
+    };
+
+    // ── Timestamp helpers ──
+    function toDate(ts) {
+        if (!ts) return null;
+        if (typeof ts.toDate === 'function') return ts.toDate();
+        if (ts.seconds) return new Date(ts.seconds * 1000);
+        return new Date(ts);
+    }
+
+    function fmtDate(ts) {
+        const d = toDate(ts);
+        if (!d || isNaN(d)) return '—';
+        return d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    // ── XSS helpers ──
+    function escHtml(s) {
+        return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function escJs(s) {
+        return String(s ?? '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    }
+
+    // ══════════════════════════════════════════════
+    // AUTH
+    // ══════════════════════════════════════════════
+    auth.onAuthStateChanged(user => {
+        if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('dashboard').classList.add('active');
+            document.getElementById('adminEmailDisplay').textContent = user.email;
+            loadDashboardData();
+        } else {
+            document.getElementById('authContainer').style.display = 'flex';
+            document.getElementById('dashboard').classList.remove('active');
+            if (user && !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+                auth.signOut();
+                showAuthError('Access denied — not an authorised admin account.');
+            }
+        }
+    });
+
+    async function sendAdminLink() {
+        const email  = document.getElementById('adminEmail').value.trim();
+        const btn    = document.getElementById('sendLinkBtn');
+        clearAuthError();
+
+        if (!email) { showAuthError('Please enter your email address.'); return; }
+        if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+            showAuthError('Access denied — this email is not authorised.');
+            return;
+        }
+
+        btn.disabled    = true;
+        btn.textContent = 'Sending…';
+
+        try {
+            const resp = await fetch(MAGIC_LINK_URL, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ email, continueUrl: window.location.href.split('?')[0] })
+            });
+            if (!resp.ok) throw new Error('Request failed');
+            document.getElementById('sentEmailDisplay').textContent = email;
+            document.getElementById('authForm').style.display = 'none';
+            document.getElementById('authSent').style.display = 'block';
+        } catch (err) {
+            showAuthError('Could not send sign-in link. Please try again.');
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = 'Send sign-in link →';
+        }
+    }
+
+    function showAuthForm() {
+        document.getElementById('authSent').style.display = 'none';
+        document.getElementById('authForm').style.display = 'block';
+    }
+
+    function logout() { auth.signOut(); }
+
+    function showAuthError(msg) { document.getElementById('authError').textContent = msg; }
+    function clearAuthError()   { document.getElementById('authError').textContent = ''; }
+
+    // Allow Enter key on email field
+    document.getElementById('adminEmail').addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendAdminLink();
+    });
+
+    // ══════════════════════════════════════════════
+    // DATA LOADING
+    // ══════════════════════════════════════════════
+    let vendorsData = [];
+
+    async function loadDashboardData() {
+        await Promise.all([loadVendors(), loadEvents()]);
+    }
+
+    async function loadVendors() {
+        const loadingEl = document.getElementById('vendorsLoading');
+        const tableEl   = document.getElementById('vendorsTable');
+        const emptyEl   = document.getElementById('vendorsEmpty');
+
+        loadingEl.style.display = 'block';
+        tableEl.style.display   = 'none';
+        emptyEl.style.display   = 'none';
+        loadingEl.innerHTML     = '<div class="spinner"></div><p>Loading vendors…</p>';
+
+        try {
+            const snap  = await db.collection('vendors').orderBy('createdAt', 'desc').get();
+            vendorsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            loadingEl.style.display = 'none';
+            updateStats();
+            filterAndRenderAll();
+        } catch (err) {
+            console.error('loadVendors:', err);
+            loadingEl.innerHTML = `<p style="color:var(--danger)">Error loading vendors: ${escHtml(err.message)}</p>`;
+        }
+    }
+
+    async function loadEvents() {
+        const loadingEl = document.getElementById('eventsLoading');
+        const tableEl   = document.getElementById('eventsTable');
+        const emptyEl   = document.getElementById('eventsEmpty');
+
+        loadingEl.style.display = 'block';
+        tableEl.style.display   = 'none';
+        emptyEl.style.display   = 'none';
+        loadingEl.innerHTML     = '<div class="spinner"></div><p>Loading events…</p>';
+
+        try {
+            const snap   = await db.collection('events').orderBy('createdAt', 'desc').limit(100).get();
+            const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            loadingEl.style.display = 'none';
+
+            if (events.length === 0) { emptyEl.style.display = 'block'; return; }
+
+            // Build vendor lookup from already-loaded vendorsData (avoids N+1 queries)
+            const vendorMap = {};
+            vendorsData.forEach(v => { vendorMap[v.id] = v; });
+
+            document.getElementById('eventsTableBody').innerHTML = events.map(e => {
+                const vendor     = vendorMap[e.vendorId];
+                const vendorName = vendor?.businessName || vendor?.email || 'Unknown';
+                const statusBadge = e.status === 'upcoming'
+                    ? '<span class="badge active">Upcoming</span>'
+                    : e.status === 'completed'
+                    ? '<span class="badge cancelled">Completed</span>'
+                    : '<span class="badge expired">Cancelled</span>';
+                const time = [e.startTime, e.endTime].filter(Boolean).join(' – ') || '—';
+                return `<tr>
+                    <td><strong>${escHtml(e.name || 'Unnamed')}</strong></td>
+                    <td>${escHtml(vendorName)}</td>
+                    <td>${escHtml(e.location || '—')}</td>
+                    <td>${escHtml(e.date || '—')}</td>
+                    <td style="font-size:13px">${escHtml(time)}</td>
+                    <td>${statusBadge}</td>
+                    <td><div class="action-btns">
+                        <button class="btn btn-danger btn-small" onclick="deleteEvent('${e.id}')">Delete</button>
+                    </div></td>
+                </tr>`;
+            }).join('');
+
+            tableEl.style.display = 'block';
+        } catch (err) {
+            console.error('loadEvents:', err);
+            loadingEl.innerHTML = `<p style="color:var(--danger)">Error loading events: ${escHtml(err.message)}</p>`;
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // STATS
+    // ══════════════════════════════════════════════
+    function updateStats() {
+        let active = 0, trials = 0, mrr = 0;
+        vendorsData.forEach(v => {
+            const s = getVendorStatus(v);
+            if (v.subscriptionStatus === 'active') {
+                active++;
+                mrr += PRICING_PLANS[v.subscriptionPlan]?.price || 0;
+            } else if (s.isTrial) {
+                trials++;
+            }
+        });
+        document.getElementById('totalVendors').textContent       = vendorsData.length;
+        document.getElementById('activeSubscriptions').textContent = active;
+        document.getElementById('freeTrials').textContent          = trials;
+        document.getElementById('monthlyRevenue').textContent      = `$${mrr.toLocaleString()}`;
+    }
+
+    // ══════════════════════════════════════════════
+    // STATUS HELPER
+    // ══════════════════════════════════════════════
+    function getVendorStatus(v) {
+        const s = v.subscriptionStatus;
+        if (s === 'active')    return { text: 'Active',        class: 'active',    isTrial: false };
+        if (s === 'cancelled') return { text: 'Cancelled',     class: 'cancelled', isTrial: false };
+        if (s === 'expired')   return { text: 'Trial Expired', class: 'expired',   isTrial: false };
+        if (s === 'suspended') return { text: 'Suspended',     class: 'suspended', isTrial: false };
+        const trialEnd = toDate(v.trialEndsAt);
+        if (trialEnd && trialEnd <= new Date()) return { text: 'Trial Expired', class: 'expired', isTrial: false };
+        return { text: 'Free Trial', class: 'trial', isTrial: true };
+    }
+
+    // ══════════════════════════════════════════════
+    // FILTER + SORT + RENDER
+    // ══════════════════════════════════════════════
+    function sortVendors(list) {
+        const mode = document.getElementById('sortSelect')?.value || 'date';
+        return [...list].sort((a, b) => {
+            if (mode === 'name')    return (a.businessName || '').localeCompare(b.businessName || '');
+            if (mode === 'status')  return getVendorStatus(a).text.localeCompare(getVendorStatus(b).text);
+            if (mode === 'revenue') return (PRICING_PLANS[b.subscriptionPlan]?.price || 0) - (PRICING_PLANS[a.subscriptionPlan]?.price || 0);
+            // default: date descending
+            return (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0);
+        });
+    }
+
+    function filterAndRenderAll() {
+        const q = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+        const filtered = q
+            ? vendorsData.filter(v =>
+                (v.businessName || '').toLowerCase().includes(q) ||
+                (v.email || '').toLowerCase().includes(q))
+            : vendorsData;
+
+        const sorted  = sortVendors(filtered);
+        const trials  = sorted.filter(v => getVendorStatus(v).isTrial);
+        const actives = sorted.filter(v => v.subscriptionStatus === 'active');
+        const expired = sorted.filter(v => {
+            const s = getVendorStatus(v);
+            return !s.isTrial && v.subscriptionStatus !== 'active';
+        });
+
+        document.getElementById('countAll').textContent     = sorted.length;
+        document.getElementById('countTrial').textContent   = trials.length;
+        document.getElementById('countActive').textContent  = actives.length;
+        document.getElementById('countExpired').textContent = expired.length;
+        document.getElementById('vendorCount').textContent  = `${sorted.length} vendor${sorted.length !== 1 ? 's' : ''}`;
+
+        renderAllTable(sorted);
+        renderTrialTable(trials);
+        renderActiveTable(actives);
+        renderExpiredTable(expired);
+    }
+
+    // ── All vendors table ──
+    function renderAllTable(vendors) {
+        const tableEl = document.getElementById('vendorsTable');
+        const emptyEl = document.getElementById('vendorsEmpty');
+        const tbody   = document.getElementById('vendorsTableBody');
+
+        if (vendors.length === 0) {
+            tableEl.style.display = 'none';
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        tbody.innerHTML = vendors.map(v => {
+            const s        = getVendorStatus(v);
+            const trialEnd = toDate(v.trialEndsAt);
+            const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / 86400000)) : null;
+            const billingInfo = s.isTrial && trialEnd
+                ? `${fmtDate(v.trialEndsAt)} <small style="color:var(--text-light)">(${daysLeft}d left)</small>`
+                : v.subscriptionStatus === 'active' && v.currentPeriodEnd
+                ? `Renews ${fmtDate(v.currentPeriodEnd)}`
+                : '—';
+            const typeBadge = v.businessType === 'shop'
+                ? '<span class="badge shop">🏪 Shop</span>'
+                : '<span class="badge van">🚐 Van</span>';
+
+            return `<tr>
+                <td><strong class="vendor-link" onclick="viewVendor('${v.id}')">${escHtml(v.businessName || 'Unnamed')}</strong></td>
+                <td>${escHtml(v.email)}</td>
+                <td>${typeBadge}</td>
+                <td><span class="badge ${s.class}">${s.text}</span></td>
+                <td style="font-size:13px">${billingInfo}</td>
+                <td style="font-size:13px;color:var(--text-light)">${fmtDate(v.createdAt)}</td>
+                <td><div class="action-btns">
+                    <button class="btn btn-primary btn-small" onclick="viewVendor('${v.id}')">View</button>
+                    ${s.isTrial ? `<button class="btn btn-success btn-small" onclick="extendTrial('${v.id}')">Extend</button>` : ''}
+                    <button class="btn btn-${v.subscriptionStatus === 'suspended' ? 'warning' : 'secondary'} btn-small"
+                        onclick="toggleSuspend('${v.id}','${v.subscriptionStatus}')">
+                        ${v.subscriptionStatus === 'suspended' ? 'Unsuspend' : 'Suspend'}
+                    </button>
+                </div></td>
+            </tr>`;
+        }).join('');
+
+        tableEl.style.display = 'block';
+        emptyEl.style.display = 'none';
+    }
+
+    // ── Free Trials table ──
+    function renderTrialTable(vendors) {
+        document.getElementById('trialTableBody').innerHTML = vendors.length === 0
+            ? `<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:30px">No vendors on free trial</td></tr>`
+            : vendors.map(v => {
+                const trialEnd = toDate(v.trialEndsAt);
+                const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / 86400000)) : null;
+                const colour   = daysLeft !== null
+                    ? daysLeft <= 7 ? 'var(--danger)' : daysLeft <= 14 ? 'var(--warning)' : 'var(--success)'
+                    : 'var(--text-light)';
+                return `<tr>
+                    <td><strong class="vendor-link" onclick="viewVendor('${v.id}')">${escHtml(v.businessName || 'Unnamed')}</strong></td>
+                    <td>${escHtml(v.email)}</td>
+                    <td>${fmtDate(v.trialEndsAt)}</td>
+                    <td><strong style="color:${colour}">${daysLeft !== null ? daysLeft + 'd' : '—'}</strong></td>
+                    <td>${v.truckCount || 0}</td>
+                    <td style="font-size:13px;color:var(--text-light)">${fmtDate(v.createdAt)}</td>
+                    <td><div class="action-btns">
+                        <button class="btn btn-success btn-small" onclick="extendTrial('${v.id}')">Extend Trial</button>
+                        <button class="btn btn-primary btn-small" onclick="viewVendor('${v.id}')">View</button>
+                    </div></td>
+                </tr>`;
+            }).join('');
+    }
+
+    // ── Active Paid table ──
+    function renderActiveTable(vendors) {
+        document.getElementById('activeTableBody').innerHTML = vendors.length === 0
+            ? `<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:30px">No active subscriptions</td></tr>`
+            : vendors.map(v => {
+                const planBadge = v.subscriptionPlan
+                    ? `<span class="badge ${v.subscriptionPlan}">${PRICING_PLANS[v.subscriptionPlan]?.name || v.subscriptionPlan}</span>`
+                    : '—';
+                const mrr = PRICING_PLANS[v.subscriptionPlan]?.price;
+                const stripeLink = v.stripeCustomerId
+                    ? `<a href="https://dashboard.stripe.com/customers/${escHtml(v.stripeCustomerId)}" target="_blank" style="color:var(--primary);font-size:13px">${escHtml(v.stripeCustomerId)}</a>`
+                    : '—';
+                return `<tr>
+                    <td><strong class="vendor-link" onclick="viewVendor('${v.id}')">${escHtml(v.businessName || 'Unnamed')}</strong></td>
+                    <td>${escHtml(v.email)}</td>
+                    <td>${planBadge}</td>
+                    <td>${stripeLink}</td>
+                    <td style="font-size:13px;color:var(--text-light)">${fmtDate(v.currentPeriodEnd)}</td>
+                    <td><strong>${mrr ? '$' + mrr + '/mo' : '—'}</strong></td>
+                    <td><div class="action-btns">
+                        <button class="btn btn-primary btn-small" onclick="viewVendor('${v.id}')">View</button>
+                        ${v.stripeCustomerId ? `<button class="btn btn-secondary btn-small" onclick="openStripe('${escHtml(v.stripeCustomerId)}')">Stripe ↗</button>` : ''}
+                    </div></td>
+                </tr>`;
+            }).join('');
+    }
+
+    // ── Expired / Cancelled table ──
+    function renderExpiredTable(vendors) {
+        document.getElementById('expiredTableBody').innerHTML = vendors.length === 0
+            ? `<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px">No expired or cancelled vendors</td></tr>`
+            : vendors.map(v => {
+                const s       = getVendorStatus(v);
+                const endDate = v.subscriptionStatus === 'cancelled' && v.currentPeriodEnd
+                    ? fmtDate(v.currentPeriodEnd)
+                    : fmtDate(v.trialEndsAt);
+                return `<tr>
+                    <td><strong class="vendor-link" onclick="viewVendor('${v.id}')">${escHtml(v.businessName || 'Unnamed')}</strong></td>
+                    <td>${escHtml(v.email)}</td>
+                    <td><span class="badge ${s.class}">${s.text}</span></td>
+                    <td style="font-size:13px;color:var(--text-light)">${endDate}</td>
+                    <td style="font-size:13px;color:var(--text-light)">${fmtDate(v.createdAt)}</td>
+                    <td><div class="action-btns">
+                        <button class="btn btn-primary btn-small" onclick="viewVendor('${v.id}')">View</button>
+                        <button class="btn btn-danger btn-small" onclick="confirmDeleteVendor('${v.id}')">Delete</button>
+                    </div></td>
+                </tr>`;
+            }).join('');
+    }
+
+    // ══════════════════════════════════════════════
+    // TAB SWITCHING
+    // ══════════════════════════════════════════════
+    function switchTab(tabName, btn) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById(`${tabName}Tab`).classList.add('active');
+    }
+
+    // ── Clickable vendor name style ──
+    document.head.insertAdjacentHTML('beforeend',
+        '<style>.vendor-link{cursor:pointer;color:var(--primary);}.vendor-link:hover{text-decoration:underline;}</style>');
+
+    // PART 3: Vendor actions added in next commit
     </script>
 
 </body>
