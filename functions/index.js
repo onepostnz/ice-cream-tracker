@@ -158,8 +158,8 @@ const emailTemplates = {
         `
     }),
 
-    paymentSuccessReceipt: (vendorName, amount, plan, nextBillingDate) => ({
-        subject: '✅ Payment received - Ice Cream Tracker',
+    paymentSuccessReceipt: (vendorName, amount, plan, nextBillingDate, invoiceNumber) => ({
+        subject: '🧾 Payment Receipt - Ice Cream Tracker',
         html: `
             <!DOCTYPE html>
             <html>
@@ -171,7 +171,7 @@ const emailTemplates = {
                     .header img { width: 60px; margin-bottom: 10px; }
                     .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
                     .receipt-box { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
-                    .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+                    .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 15px; }
                     .receipt-row:last-child { border-bottom: none; font-weight: bold; font-size: 16px; }
                     .button { display: inline-block; background: #FF6B9D; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
                     .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
@@ -181,15 +181,17 @@ const emailTemplates = {
                 <div class="container">
                     <div class="header">
                         <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker" />
-                        <h1>Payment Received</h1>
+                        <h1>Payment Receipt</h1>
                     </div>
                     <div class="content">
                         <p>Hi ${vendorName || 'there'},</p>
                         <p>Thanks — your payment was successful. Here's your receipt:</p>
                         <div class="receipt-box">
+                            ${invoiceNumber ? `<div class="receipt-row"><span>Invoice #</span><span>${invoiceNumber}</span></div>` : ''}
                             <div class="receipt-row"><span>Plan</span><span>${plan || 'Subscription'}</span></div>
-                            <div class="receipt-row"><span>Amount paid</span><span>$${amount} NZD</span></div>
+                            <div class="receipt-row"><span>Date</span><span>${new Date().toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
                             <div class="receipt-row"><span>Next billing date</span><span>${nextBillingDate}</span></div>
+                            <div class="receipt-row"><span>Amount paid</span><span>$${amount} NZD</span></div>
                         </div>
                         <p style="text-align: center;">
                             <a href="https://app.icecreamtracker.co.nz/billing.html" class="button">View Billing</a>
@@ -204,7 +206,7 @@ const emailTemplates = {
     }),
 
     subscriptionCancelled: (vendorName, accessEndsDate) => ({
-        subject: 'Your Ice Cream Tracker subscription has been cancelled',
+        subject: '❌ Subscription Cancelled - Ice Cream Tracker',
         html: `
             <!DOCTYPE html>
             <html>
@@ -246,7 +248,7 @@ const emailTemplates = {
     }),
 
     renewalReminder: (vendorName, plan, amount, renewalDate) => ({
-        subject: `Your Ice Cream Tracker subscription renews in 3 days`,
+        subject: '⏰ Your subscription renews in 3 days - Ice Cream Tracker',
         html: `
             <!DOCTYPE html>
             <html>
@@ -473,11 +475,19 @@ exports.cancelSubscription = onRequest({ secrets: secretList }, async (req, res)
     try {
         const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
         const { vendorId, subscriptionId } = req.body;
-        await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        const updatedSub = await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        const accessEndsDate = new Date(updatedSub.current_period_end * 1000)
+            .toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
         await db.collection('vendors').doc(vendorId).update({
             cancelAtPeriodEnd: true,
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
+        const vendorDoc = await db.collection('vendors').doc(vendorId).get();
+        if (vendorDoc.exists) {
+            const vendor = vendorDoc.data();
+            await sendEmail(vendor.email, emailTemplates.subscriptionCancelled(vendor.businessName, accessEndsDate));
+            console.log(`Cancellation confirmation email sent to ${vendor.email}`);
+        }
         res.json({ success: true });
     } catch (error) {
         console.error('Error cancelling subscription:', error);
@@ -592,7 +602,8 @@ async function handlePaymentSucceeded(invoice) {
         lastPaymentAmount: invoice.amount_paid / 100,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    await sendEmail(vendor.email, emailTemplates.paymentSuccessReceipt(vendor.businessName, amount, planLabel, nextBillingDate));
+    const invoiceNumber = invoice.number || null;
+    await sendEmail(vendor.email, emailTemplates.paymentSuccessReceipt(vendor.businessName, amount, planLabel, nextBillingDate, invoiceNumber));
     console.log(`Payment receipt email sent to ${vendor.email}`);
 }
 
