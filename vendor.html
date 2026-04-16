@@ -740,39 +740,50 @@
         <div class="auth-box">
             <div class="auth-header">
                 <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker NZ" style="width: 80px; height: 80px; margin: 0 auto 20px; display: block;">
-                <h1 style="display: none;">Ice Cream Tracker NZ</h1>
-                <p id="authTitle">Vendor Login</p>
+                <p id="authTitle" style="font-size:18px; font-weight:600; color:#2B4C7E;">Vendor Login</p>
             </div>
-            
+
             <div id="errorMessage" class="error-message"></div>
-            
-            <form id="authForm">
+
+            <div id="authInputs">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" required placeholder="vendor@example.com">
+                    <input type="email" id="email" placeholder="vendor@example.com">
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required placeholder="Enter your password">
-                </div>
-                
-                <div class="form-group" id="businessNameGroup" style="display: none;">
-                    <label for="businessName">Business Name</label>
-                    <input type="text" id="businessName" placeholder="e.g., Mr Whippy Auckland">
-                </div>
-                
-                <button type="submit" class="btn btn-primary" id="authButton">Login</button>
-            </form>
+                <button class="btn btn-primary" id="authButton" onclick="handleMagicLink()" style="width:100%; margin-top:8px;">Send me a sign-in link →</button>
 
-            <p id="forgotPasswordLink" style="text-align:center; margin-top:14px; font-size:14px;">
-                <a href="#" onclick="handleForgotPassword(event)" style="color:#2B4C7E; text-decoration:none; font-weight:600;">Forgot password?</a>
-            </p>
+                <div style="text-align:center; margin:16px 0; color:#aaa; font-size:13px;">or</div>
 
-            <div class="auth-toggle">
-                <span id="authToggleText">Don't have an account?</span>
-                <a href="#" id="authToggleLink">Sign up</a>
+                <button onclick="handleGoogleSignin()" style="width:100%; padding:11px; background:white; border:2px solid #e0e0e0; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; color:#333; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Continue with Google
+                </button>
             </div>
+
+            <div id="authSent" style="display:none; text-align:center; padding:8px 0;">
+                <div style="font-size:40px; margin-bottom:12px;">📬</div>
+                <p style="font-weight:600; color:#2B4C7E; margin-bottom:6px;">Check your email!</p>
+                <p style="font-size:14px; color:#666;">We sent a sign-in link to <strong id="authSentEmail"></strong>. Click it to access your dashboard.</p>
+                <button onclick="document.getElementById('authSent').style.display='none'; document.getElementById('authInputs').style.display='block';" style="margin-top:16px; background:none; border:none; color:#2B4C7E; font-size:13px; cursor:pointer; font-weight:600;">← Use a different email</button>
+            </div>
+
+            <div class="auth-toggle" style="margin-top:20px;">
+                <span>New vendor?</span>
+                <a href="signup.html" style="color:#2B4C7E; font-weight:600; margin-left:4px;">Create an account</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Block Overlay (expired / cancelled) -->
+    <div id="accessBlockOverlay" style="display:none; position:fixed; inset:0; background:rgba(43,76,126,0.96); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:16px; padding:48px 40px; max-width:480px; width:100%; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="" style="width:60px; border-radius:12px; margin-bottom:20px;">
+            <div id="accessBlockIcon" style="font-size:44px; margin-bottom:16px;"></div>
+            <h2 id="accessBlockTitle" style="color:#2B4C7E; font-size:22px; margin-bottom:12px;"></h2>
+            <p id="accessBlockMessage" style="color:#666; font-size:15px; line-height:1.6; margin-bottom:28px;"></p>
+            <a id="accessBlockBtn" href="billing.html" style="display:inline-block; background:#FF6B9D; color:white; padding:14px 36px; border-radius:8px; font-weight:bold; font-size:16px; text-decoration:none;">View Plans</a>
+            <br>
+            <button onclick="auth.signOut().then(()=>window.location.href='signup.html')" style="margin-top:16px; background:none; border:none; color:#aaa; font-size:13px; cursor:pointer;">Sign out</button>
         </div>
     </div>
 
@@ -1115,63 +1126,66 @@
             }
         });
 
-        // Toggle between login and signup
-        document.getElementById('authToggleLink').addEventListener('click', (e) => {
-            e.preventDefault();
-            isSignUp = !isSignUp;
-
-            if (isSignUp) {
-                document.getElementById('authTitle').textContent = 'Vendor Sign Up';
-                document.getElementById('authButton').textContent = 'Sign Up';
-                document.getElementById('businessNameGroup').style.display = 'block';
-                document.getElementById('authToggleText').textContent = 'Already have an account?';
-                document.getElementById('authToggleLink').textContent = 'Login';
-                document.getElementById('forgotPasswordLink').style.display = 'none';
-            } else {
-                document.getElementById('authTitle').textContent = 'Vendor Login';
-                document.getElementById('authButton').textContent = 'Login';
-                document.getElementById('businessNameGroup').style.display = 'none';
-                document.getElementById('authToggleText').textContent = "Don't have an account?";
-                document.getElementById('authToggleLink').textContent = 'Sign up';
-                document.getElementById('forgotPasswordLink').style.display = 'block';
-            }
-        });
-
-        // Auth form submission
-        document.getElementById('authForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const businessName = document.getElementById('businessName').value;
-            
+        async function handleMagicLink() {
+            const email = document.getElementById('email').value.trim();
+            if (!email) { showError('Please enter your email address.'); return; }
+            const btn = document.getElementById('authButton');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
             try {
-                if (isSignUp) {
-                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                    
-                    // Calculate trial dates
-                    const trialStart = new Date();
-                    const trialEnd = new Date(trialStart.getTime() + (45 * 24 * 60 * 60 * 1000));
-                    
-                    // Save vendor profile with trial
-                    await db.collection('vendors').doc(userCredential.user.uid).set({
-                        uid: userCredential.user.uid,
-                        email: email,
-                        businessName: businessName,
+                const resp = await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendMagicLink', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                if (!resp.ok) throw new Error('Failed');
+                localStorage.setItem('emailForSignIn', email);
+                document.getElementById('authInputs').style.display = 'none';
+                document.getElementById('authSentEmail').textContent = email;
+                document.getElementById('authSent').style.display = 'block';
+                document.getElementById('errorMessage').style.display = 'none';
+            } catch {
+                showError('Could not send sign-in link. Please try again.');
+                btn.disabled = false;
+                btn.textContent = 'Send me a sign-in link →';
+            }
+        }
+
+        async function handleGoogleSignin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                const vendorDoc = await db.collection('vendors').doc(user.uid).get();
+                if (!vendorDoc.exists) {
+                    await db.collection('vendors').doc(user.uid).set({
+                        uid: user.uid,
+                        email: user.email,
+                        businessName: user.displayName || '',
+                        businessType: 'van',
                         subscriptionStatus: 'trial',
-                        trialStartedAt: firebase.firestore.Timestamp.fromDate(trialStart),
-                        trialEndsAt: firebase.firestore.Timestamp.fromDate(trialEnd),
+                        trialStartedAt: firebase.firestore.Timestamp.now(),
+                        trialEndsAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 45 * 24 * 60 * 60 * 1000)),
                         truckCount: 0,
                         eventCount: 0,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                } else {
-                    await auth.signInWithEmailAndPassword(email, password);
                 }
             } catch (error) {
-                showError(error.message);
+                showError('Google sign-in failed. Please try again.');
             }
+        }
+
+        // Auth form submission (kept for Enter key support)
+        document.getElementById('email').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleMagicLink();
         });
+
+        // DEAD CODE BLOCK — kept to avoid reference errors from old event listener
+        if (false) { const email = '', password = '', businessName = '';
+            
+            try {
+        } // end dead code block
 
         // Live Toggle Handler
         document.getElementById('liveToggle').addEventListener('change', async (e) => {
@@ -1461,21 +1475,18 @@
                     const trialEnd = currentVendor.trialEndsAt.toDate();
                     const now = new Date();
                     const daysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
-                    
                     if (daysLeft > 0) {
                         showTrialBanner(daysLeft);
                     } else {
-                        // Trial expired - update status
-                        await db.collection('vendors').doc(uid).update({
-                            subscriptionStatus: 'expired'
-                        });
+                        await db.collection('vendors').doc(uid).update({ subscriptionStatus: 'expired' });
                         currentVendor.subscriptionStatus = 'expired';
-                        showExpiredBanner();
+                        showAccessBlock('expired');
                     }
                 } else if (currentVendor.subscriptionStatus === 'expired') {
-                    showExpiredBanner();
+                    showAccessBlock('expired');
+                } else if (currentVendor.subscriptionStatus === 'cancelled') {
+                    showAccessBlock('cancelled');
                 } else if (currentVendor.subscriptionStatus === 'active') {
-                    // Hide trial banner for paid users
                     document.getElementById('trialBanner').style.display = 'none';
                 }
                 
@@ -1505,22 +1516,26 @@
             }
         }
 
-        function showExpiredBanner() {
-            const banner = document.getElementById('trialBanner');
-            if (banner) {
-                banner.innerHTML = `
-                    <div class="trial-content">
-                        <div class="trial-icon">⚠️</div>
-                        <div class="trial-text">
-                            <strong>Trial Expired</strong>
-                            <p>Upgrade to a paid plan to continue using Ice Cream Tracker</p>
-                        </div>
-                        <a href="billing.html" class="btn-upgrade">Choose a Plan</a>
-                    </div>
-                `;
-                banner.classList.add('expired');
-                banner.style.display = 'block';
+        function showAccessBlock(status) {
+            const overlay = document.getElementById('accessBlockOverlay');
+            const icon = document.getElementById('accessBlockIcon');
+            const title = document.getElementById('accessBlockTitle');
+            const message = document.getElementById('accessBlockMessage');
+            const btn = document.getElementById('accessBlockBtn');
+            if (status === 'expired') {
+                icon.textContent = '⏰';
+                title.textContent = 'Your trial has ended';
+                message.textContent = 'Your 45-day free trial has finished. Choose a plan to continue using Ice Cream Tracker and stay on the map.';
+                btn.textContent = 'Choose a Plan';
+                btn.href = 'billing.html';
+            } else if (status === 'cancelled') {
+                icon.textContent = '❌';
+                title.textContent = 'Subscription ended';
+                message.textContent = 'Your subscription has been cancelled. Resubscribe any time to get back on the map.';
+                btn.textContent = 'Resubscribe';
+                btn.href = 'billing.html';
             }
+            overlay.style.display = 'flex';
         }
 
         function applyFeatureLocks(vendor) {

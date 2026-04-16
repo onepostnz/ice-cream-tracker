@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signing you in... - Ice Cream Tracker NZ</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #2B4C7E 0%, #3D5A8C 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .logo { width: 72px; height: 72px; border-radius: 14px; margin-bottom: 20px; }
+        h2 { color: #2B4C7E; font-size: 22px; margin-bottom: 10px; }
+        p { color: #666; font-size: 15px; line-height: 1.6; }
+        .spinner {
+            width: 44px; height: 44px;
+            border: 4px solid #f0f0f0;
+            border-top-color: #FF6B9D;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 24px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 28px;
+            background: #FF6B9D;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .error-icon { font-size: 48px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker" class="logo">
+
+        <div id="stateLoading">
+            <div class="spinner"></div>
+            <h2>Signing you in...</h2>
+            <p>Just a moment while we verify your link.</p>
+        </div>
+
+        <div id="stateError" style="display:none;">
+            <div class="error-icon">⚠️</div>
+            <h2>Link expired or invalid</h2>
+            <p id="errorDetail">This sign-in link has expired or already been used. Request a new one to continue.</p>
+            <a href="signup.html" class="btn">Back to Sign In</a>
+        </div>
+
+        <div id="stateSuccess" style="display:none;">
+            <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+            <h2>You're in!</h2>
+            <p>Redirecting to your dashboard...</p>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAt8IUbIAf8Vf0Nse4lZa5uhpvEqdttNCQ",
+            authDomain: "icecreamtracker-9625b.firebaseapp.com",
+            databaseURL: "https://icecreamtracker-9625b-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "icecreamtracker-9625b",
+            storageBucket: "icecreamtracker-9625b.firebasestorage.app",
+            messagingSenderId: "468582467639",
+            appId: "1:468582467639:web:7d4e7a16b5d8e4c0f3e8d2"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        function showState(name) {
+            ['stateLoading', 'stateError', 'stateSuccess'].forEach(id => {
+                document.getElementById(id).style.display = id === name ? 'block' : 'none';
+            });
+        }
+
+        async function completeSignIn() {
+            if (!auth.isSignInWithEmailLink(window.location.href)) {
+                document.getElementById('errorDetail').textContent =
+                    'This page is for completing email sign-in. Head back to sign in and try again.';
+                showState('stateError');
+                return;
+            }
+
+            let email = localStorage.getItem('emailForSignIn');
+            if (!email) {
+                email = window.prompt('Please enter your email address to confirm sign-in:');
+                if (!email) {
+                    document.getElementById('errorDetail').textContent =
+                        'Email address required to complete sign-in.';
+                    showState('stateError');
+                    return;
+                }
+            }
+
+            try {
+                const result = await auth.signInWithEmailLink(email, window.location.href);
+                localStorage.removeItem('emailForSignIn');
+
+                const user = result.user;
+                const vendorDoc = await db.collection('vendors').doc(user.uid).get();
+
+                if (!vendorDoc.exists) {
+                    const businessName = localStorage.getItem('pendingBusinessName') || user.displayName || '';
+                    const businessType = localStorage.getItem('pendingBusinessType') || 'van';
+                    await db.collection('vendors').doc(user.uid).set({
+                        uid: user.uid,
+                        email: user.email,
+                        businessName,
+                        businessType,
+                        subscriptionStatus: 'trial',
+                        trialStartedAt: firebase.firestore.Timestamp.now(),
+                        trialEndsAt: firebase.firestore.Timestamp.fromDate(
+                            new Date(Date.now() + 45 * 24 * 60 * 60 * 1000)
+                        ),
+                        truckCount: 0,
+                        eventCount: 0,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    localStorage.removeItem('pendingBusinessName');
+                    localStorage.removeItem('pendingBusinessType');
+                }
+
+                showState('stateSuccess');
+                setTimeout(() => window.location.href = 'vendor.html', 1200);
+
+            } catch (error) {
+                console.error('Sign-in error:', error);
+                let msg = 'This sign-in link has expired or already been used. Request a new one to continue.';
+                if (error.code === 'auth/invalid-action-code') msg = 'This link has already been used or has expired.';
+                else if (error.code === 'auth/invalid-email') msg = 'Email address does not match the sign-in link.';
+                document.getElementById('errorDetail').textContent = msg;
+                showState('stateError');
+            }
+        }
+
+        completeSignIn();
+    </script>
+</body>
+</html>

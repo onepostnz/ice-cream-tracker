@@ -366,6 +366,45 @@ const emailTemplates = {
             </body>
             </html>
         `
+    }),
+
+    magicLink: (link) => ({
+        subject: '🍦 Your Ice Cream Tracker sign-in link',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAB 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                    .content { background: #f9f9f9; padding: 40px 30px; border-radius: 0 0 8px 8px; text-align: center; }
+                    .button { display: inline-block; background: #FF6B9D; color: white !important; padding: 16px 44px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; margin: 24px 0; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                    .note { font-size: 13px; color: #999; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e0e0e0; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="https://assets.cdn.filesafe.space/eh6jrXRnyP8w1TsSmdyM/media/69d8870ad7871cddf7f4a415.png" alt="Ice Cream Tracker" style="width:60px;border-radius:12px;margin-bottom:12px;">
+                        <h1 style="margin:0;font-size:24px;">Sign in to Ice Cream Tracker</h1>
+                    </div>
+                    <div class="content">
+                        <p style="font-size:16px;color:#555;margin:0 0 8px;">Click the button below to sign in to your dashboard.</p>
+                        <p style="font-size:14px;color:#999;margin:0 0 8px;">This link expires in 1 hour and can only be used once.</p>
+                        <a href="${link}" class="button">Sign In Now →</a>
+                        <div class="note">
+                            Didn't request this? You can safely ignore this email — no account changes will be made.<br><br>
+                            Button not working? Paste this URL into your browser:<br>
+                            <span style="word-break:break-all;color:#FF6B9D;font-size:12px;">${link}</span>
+                        </div>
+                    </div>
+                    <div class="footer"><p>Ice Cream Tracker NZ · <a href="https://app.icecreamtracker.co.nz" style="color:#FF6B9D;">app.icecreamtracker.co.nz</a></p></div>
+                </div>
+            </body>
+            </html>
+        `
     })
 };
 
@@ -744,4 +783,32 @@ exports.sendPasswordReset = onRequest({ secrets: secretList }, async (req, res) 
     }
 
     res.json({ success: true });
+});
+
+// ============================================
+// 10. SEND MAGIC LINK (PASSWORDLESS SIGN-IN) VIA SMTP2GO
+// ============================================
+exports.sendMagicLink = onRequest({ secrets: secretList }, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
+
+    const { email } = req.body;
+    if (!email) { res.status(400).json({ error: 'Email required' }); return; }
+
+    try {
+        const actionCodeSettings = {
+            url: 'https://app.icecreamtracker.co.nz/verify.html',
+            handleCodeInApp: true
+        };
+        const link = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
+        await sendEmail(email, emailTemplates.magicLink(link));
+        console.log(`Magic link sent to ${email}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Magic link error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
