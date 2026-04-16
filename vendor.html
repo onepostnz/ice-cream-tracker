@@ -1135,7 +1135,7 @@
             try {
                 const actionCodeSettings = {
                     url: 'https://app.icecreamtracker.co.nz/verify.html',
-                    handleCodeInApp: false
+                    handleCodeInApp: true
                 };
                 console.log('[MagicLink] Sending to:', email, 'with settings:', actionCodeSettings);
                 await auth.sendSignInLinkToEmail(email, actionCodeSettings);
