@@ -1054,7 +1054,259 @@
     document.head.insertAdjacentHTML('beforeend',
         '<style>.vendor-link{cursor:pointer;color:var(--primary);}.vendor-link:hover{text-decoration:underline;}</style>');
 
-    // PART 3: Vendor actions added in next commit
+    // ══════════════════════════════════════════════
+    // VENDOR DETAIL MODAL
+    // ══════════════════════════════════════════════
+    function viewVendor(vendorId) {
+        const v = vendorsData.find(v => v.id === vendorId);
+        if (!v) return;
+
+        const s        = getVendorStatus(v);
+        const trialEnd = toDate(v.trialEndsAt);
+        const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / 86400000)) : null;
+        const planName = PRICING_PLANS[v.subscriptionPlan]?.name || v.subscriptionPlan || null;
+
+        const stripeRow = v.stripeCustomerId ? `
+            <div>
+                <div class="info-label">Stripe Customer</div>
+                <div class="info-value">
+                    <a href="https://dashboard.stripe.com/customers/${escHtml(v.stripeCustomerId)}"
+                       target="_blank" style="color:var(--primary)">${escHtml(v.stripeCustomerId)}</a>
+                </div>
+            </div>` : '';
+
+        const billingRow = v.currentPeriodEnd ? `
+            <div>
+                <div class="info-label">Next Billing</div>
+                <div class="info-value">${fmtDate(v.currentPeriodEnd)}</div>
+            </div>` : '';
+
+        const trialRow = s.isTrial && trialEnd ? `
+            <div>
+                <div class="info-label">Trial Ends</div>
+                <div class="info-value">${fmtDate(v.trialEndsAt)}
+                    <span style="color:${daysLeft <= 7 ? 'var(--danger)' : 'var(--text-light)'}; font-size:12px; margin-left:6px">
+                        (${daysLeft}d left)
+                    </span>
+                </div>
+            </div>` : '';
+
+        const planRow = planName ? `
+            <div>
+                <div class="info-label">Plan</div>
+                <div class="info-value"><span class="badge ${v.subscriptionPlan}">${planName}</span></div>
+            </div>` : '';
+
+        const phoneRow = v.phone ? `
+            <div>
+                <div class="info-label">Phone</div>
+                <div class="info-value">${escHtml(v.phone)}</div>
+            </div>` : '';
+
+        document.getElementById('vendorModalContent').innerHTML = `
+            <h2 class="modal-title">${escHtml(v.businessName || 'Unnamed Vendor')}</h2>
+
+            <div class="info-grid">
+                <div>
+                    <div class="info-label">Email</div>
+                    <div class="info-value">${escHtml(v.email)}</div>
+                </div>
+                <div>
+                    <div class="info-label">Business Type</div>
+                    <div class="info-value">
+                        <span class="badge ${v.businessType}">${v.businessType === 'shop' ? '🏪 Shop' : '🚐 Van'}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="info-label">Status</div>
+                    <div class="info-value"><span class="badge ${s.class}">${s.text}</span></div>
+                </div>
+                <div>
+                    <div class="info-label">Signed Up</div>
+                    <div class="info-value">${fmtDate(v.createdAt)}</div>
+                </div>
+                ${trialRow}
+                ${planRow}
+                ${stripeRow}
+                ${billingRow}
+                <div>
+                    <div class="info-label">Trucks</div>
+                    <div class="info-value">${v.truckCount || 0}</div>
+                </div>
+                <div>
+                    <div class="info-label">Events</div>
+                    <div class="info-value">${v.eventCount || 0}</div>
+                </div>
+                ${phoneRow}
+            </div>
+
+            <div class="modal-actions">
+                <div class="modal-actions-title">Actions</div>
+                <div class="modal-action-btns">
+                    ${s.isTrial ? `<button class="btn btn-success btn-small" onclick="extendTrial('${v.id}')">Extend Trial</button>` : ''}
+                    <button class="btn btn-${v.subscriptionStatus === 'suspended' ? 'warning' : 'secondary'} btn-small"
+                        onclick="toggleSuspend('${v.id}','${v.subscriptionStatus}')">
+                        ${v.subscriptionStatus === 'suspended' ? 'Unsuspend' : 'Suspend'}
+                    </button>
+                    <button class="btn btn-primary btn-small"
+                        onclick="sendMagicLinkToVendor('${escJs(v.email)}')">Send Sign-in Link</button>
+                    <button class="btn btn-outline btn-small"
+                        onclick="editBusinessName('${v.id}','${escJs(v.businessName || '')}')">Edit Name</button>
+                    ${v.stripeCustomerId
+                        ? `<button class="btn btn-outline btn-small" onclick="openStripe('${escHtml(v.stripeCustomerId)}')">Stripe Dashboard ↗</button>`
+                        : ''}
+                    <button class="btn btn-danger btn-small" onclick="confirmDeleteVendor('${v.id}')">Delete Vendor</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('vendorModal').classList.add('open');
+    }
+
+    function closeVendorModal() {
+        document.getElementById('vendorModal').classList.remove('open');
+    }
+
+    // Close on overlay click
+    document.getElementById('vendorModal').addEventListener('click', function(e) {
+        if (e.target === this) closeVendorModal();
+    });
+
+    // ══════════════════════════════════════════════
+    // VENDOR ACTIONS
+    // ══════════════════════════════════════════════
+
+    async function extendTrial(vendorId) {
+        const days = parseInt(prompt('Extend trial by how many days?', '7'), 10);
+        if (!days || isNaN(days) || days <= 0) return;
+
+        try {
+            const vendor  = vendorsData.find(v => v.id === vendorId);
+            const current = toDate(vendor?.trialEndsAt) || new Date();
+            const base    = current > new Date() ? current : new Date();
+            const newEnd  = new Date(base.getTime() + days * 86400000);
+
+            // Restore to 'trial' if it was expired
+            const newStatus = (vendor?.subscriptionStatus === 'expired' || vendor?.subscriptionStatus === 'trial')
+                ? 'trial'
+                : vendor?.subscriptionStatus || 'trial';
+
+            await db.collection('vendors').doc(vendorId).update({
+                trialEndsAt:        firebase.firestore.Timestamp.fromDate(newEnd),
+                subscriptionStatus: newStatus
+            });
+
+            showToast(`Trial extended by ${days} day${days !== 1 ? 's' : ''}`);
+            closeVendorModal();
+            await loadVendors();
+        } catch (err) {
+            showToast('Failed to extend trial: ' + err.message, 'error');
+        }
+    }
+
+    async function toggleSuspend(vendorId, currentStatus) {
+        const isSuspended = currentStatus === 'suspended';
+        const msg = isSuspended
+            ? 'Unsuspend this vendor and restore their access?'
+            : 'Suspend this vendor? They will immediately lose access to the platform.';
+        if (!confirm(msg)) return;
+
+        try {
+            const vendor = vendorsData.find(v => v.id === vendorId);
+            if (isSuspended) {
+                const restore = vendor?.statusBeforeSuspension || 'trial';
+                await db.collection('vendors').doc(vendorId).update({
+                    subscriptionStatus:      restore,
+                    statusBeforeSuspension:  firebase.firestore.FieldValue.delete()
+                });
+            } else {
+                await db.collection('vendors').doc(vendorId).update({
+                    subscriptionStatus:      'suspended',
+                    statusBeforeSuspension:  currentStatus
+                });
+            }
+            showToast(`Vendor ${isSuspended ? 'unsuspended' : 'suspended'}`);
+            closeVendorModal();
+            await loadVendors();
+        } catch (err) {
+            showToast('Failed: ' + err.message, 'error');
+        }
+    }
+
+    async function sendMagicLinkToVendor(email) {
+        if (!confirm(`Send a sign-in link to ${email}?`)) return;
+        try {
+            const resp = await fetch(MAGIC_LINK_URL, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ email })
+            });
+            if (!resp.ok) throw new Error('Request failed');
+            showToast(`Sign-in link sent to ${email}`);
+        } catch (err) {
+            showToast('Failed to send link: ' + err.message, 'error');
+        }
+    }
+
+    async function editBusinessName(vendorId, currentName) {
+        const newName = prompt('New business name:', currentName);
+        if (!newName || newName.trim() === currentName.trim()) return;
+        try {
+            await db.collection('vendors').doc(vendorId).update({ businessName: newName.trim() });
+            showToast('Business name updated');
+            closeVendorModal();
+            await loadVendors();
+        } catch (err) {
+            showToast('Failed: ' + err.message, 'error');
+        }
+    }
+
+    async function confirmDeleteVendor(vendorId) {
+        const vendor = vendorsData.find(v => v.id === vendorId);
+        const name   = vendor?.businessName || vendor?.email || vendorId;
+        if (!confirm(`PERMANENTLY DELETE "${name}"?\n\nThis removes all their Firestore data. This cannot be undone.`)) return;
+        try {
+            await db.collection('vendors').doc(vendorId).delete();
+            showToast('Vendor deleted');
+            closeVendorModal();
+            await loadVendors();
+        } catch (err) {
+            showToast('Failed to delete: ' + err.message, 'error');
+        }
+    }
+
+    async function deleteEvent(eventId) {
+        if (!confirm('Delete this event? This cannot be undone.')) return;
+        try {
+            await db.collection('events').doc(eventId).delete();
+            showToast('Event deleted');
+            loadEvents();
+        } catch (err) {
+            showToast('Error deleting event: ' + err.message, 'error');
+        }
+    }
+
+    function openStripe(customerId) {
+        if (customerId) window.open(`https://dashboard.stripe.com/customers/${customerId}`, '_blank');
+    }
+
+    // ══════════════════════════════════════════════
+    // TOAST NOTIFICATIONS
+    // ══════════════════════════════════════════════
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.style.cssText = [
+            'position:fixed', 'bottom:24px', 'right:24px', 'z-index:9999',
+            `background:${type === 'error' ? '#f44336' : '#4CAF50'}`,
+            'color:white', 'padding:14px 20px', 'border-radius:10px',
+            'font-size:14px', 'font-weight:500',
+            'box-shadow:0 4px 16px rgba(0,0,0,0.25)',
+            'animation:slideUp 0.25s ease', 'max-width:340px', 'line-height:1.4'
+        ].join(';');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+    }
     </script>
 
 </body>

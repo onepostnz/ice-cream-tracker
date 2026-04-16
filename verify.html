@@ -98,13 +98,22 @@
             });
         }
 
+        const ADMIN_EMAILS = ['admin@icecreamtracker.co.nz', 'sam@onepost.co.nz'];
+
+        function redirectAfterSignIn(user) {
+            const dest = ADMIN_EMAILS.includes((user.email || '').toLowerCase())
+                ? 'admin.html'
+                : 'vendor.html';
+            window.location.href = dest;
+        }
+
         async function completeSignIn() {
             // If the user is already authenticated (e.g. Firebase action handler completed sign-in),
             // just go straight to the dashboard
             if (auth.currentUser) {
                 await ensureVendorDoc(auth.currentUser);
                 showState('stateSuccess');
-                setTimeout(() => window.location.href = 'vendor.html', 1000);
+                setTimeout(() => redirectAfterSignIn(auth.currentUser), 1000);
                 return;
             }
 
@@ -120,7 +129,7 @@
                     if (user) {
                         await ensureVendorDoc(user);
                         showState('stateSuccess');
-                        setTimeout(() => window.location.href = 'vendor.html', 1000);
+                        setTimeout(() => redirectAfterSignIn(user), 1000);
                     } else {
                         document.getElementById('errorDetail').textContent =
                             'This sign-in link has expired or already been used. Request a new one to continue.';
@@ -146,7 +155,7 @@
                 localStorage.removeItem('emailForSignIn');
                 await ensureVendorDoc(result.user);
                 showState('stateSuccess');
-                setTimeout(() => window.location.href = 'vendor.html', 1200);
+                setTimeout(() => redirectAfterSignIn(result.user), 1200);
             } catch (error) {
                 console.error('Sign-in error:', error);
                 let msg = 'This sign-in link has expired or already been used. Request a new one to continue.';

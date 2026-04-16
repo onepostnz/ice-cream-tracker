@@ -795,12 +795,20 @@ exports.sendMagicLink = onRequest({ secrets: secretList }, async (req, res) => {
     if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
     if (req.method !== 'POST') { res.status(405).send('Method Not Allowed'); return; }
 
-    const { email } = req.body;
+    const { email, continueUrl } = req.body;
     if (!email) { res.status(400).json({ error: 'Email required' }); return; }
 
     try {
+        const ALLOWED_HOSTS = ['app.icecreamtracker.co.nz', 'icecreamtracker.co.nz'];
+        let redirectUrl = 'https://app.icecreamtracker.co.nz/verify.html';
+        if (continueUrl) {
+            try {
+                const parsed = new URL(continueUrl);
+                if (ALLOWED_HOSTS.includes(parsed.hostname)) redirectUrl = continueUrl;
+            } catch (_) { /* invalid URL — use default */ }
+        }
         const actionCodeSettings = {
-            url: 'https://app.icecreamtracker.co.nz/verify.html',
+            url: redirectUrl,
             handleCodeInApp: false
         };
         const link = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
