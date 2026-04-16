@@ -1133,22 +1133,19 @@
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
-                const actionCodeSettings = {
-                    url: 'https://app.icecreamtracker.co.nz/verify.html',
-                    handleCodeInApp: true
-                };
-                console.log('[MagicLink] Sending to:', email, 'with settings:', actionCodeSettings);
-                await auth.sendSignInLinkToEmail(email, actionCodeSettings);
-                console.log('[MagicLink] sendSignInLinkToEmail succeeded');
+                const resp = await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendMagicLink', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                if (!resp.ok) throw new Error(await resp.text());
                 window.localStorage.setItem('emailForSignIn', email);
                 document.getElementById('authInputs').style.display = 'none';
                 document.getElementById('authSentEmail').textContent = email;
                 document.getElementById('authSent').style.display = 'block';
                 document.getElementById('errorMessage').style.display = 'none';
             } catch (error) {
-                console.error('[MagicLink] sendSignInLinkToEmail failed:', error);
-                console.error('[MagicLink] error.code:', error.code);
-                console.error('[MagicLink] error.message:', error.message);
+                console.error('[MagicLink] error:', error);
                 showError('Could not send sign-in link. Please try again.');
                 btn.disabled = false;
                 btn.textContent = 'Send me a sign-in link →';
