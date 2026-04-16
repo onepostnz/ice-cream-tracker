@@ -801,7 +801,7 @@ exports.sendMagicLink = onRequest({ secrets: secretList }, async (req, res) => {
     try {
         const actionCodeSettings = {
             url: 'https://app.icecreamtracker.co.nz/verify.html',
-            handleCodeInApp: true
+            handleCodeInApp: false
         };
         const link = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
         await sendEmail(email, emailTemplates.magicLink(link));

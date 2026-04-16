@@ -99,10 +99,34 @@
         }
 
         async function completeSignIn() {
+            // If the user is already authenticated (e.g. Firebase action handler completed sign-in),
+            // just go straight to the dashboard
+            if (auth.currentUser) {
+                await ensureVendorDoc(auth.currentUser);
+                showState('stateSuccess');
+                setTimeout(() => window.location.href = 'vendor.html', 1000);
+                return;
+            }
+
             if (!auth.isSignInWithEmailLink(window.location.href)) {
-                document.getElementById('errorDetail').textContent =
-                    'This page is for completing email sign-in. Head back to sign in and try again.';
-                showState('stateError');
+                // Not a magic link URL — wait briefly for auth state in case sign-in just completed
+                await new Promise(resolve => {
+                    const unsub = auth.onAuthStateChanged(user => {
+                        unsub();
+                        resolve(user);
+                    });
+                    setTimeout(() => resolve(null), 3000);
+                }).then(async user => {
+                    if (user) {
+                        await ensureVendorDoc(user);
+                        showState('stateSuccess');
+                        setTimeout(() => window.location.href = 'vendor.html', 1000);
+                    } else {
+                        document.getElementById('errorDetail').textContent =
+                            'This sign-in link has expired or already been used. Request a new one to continue.';
+                        showState('stateError');
+                    }
+                });
                 return;
             }
 
@@ -120,34 +144,9 @@
             try {
                 const result = await auth.signInWithEmailLink(email, window.location.href);
                 localStorage.removeItem('emailForSignIn');
-
-                const user = result.user;
-                const vendorDoc = await db.collection('vendors').doc(user.uid).get();
-
-                if (!vendorDoc.exists) {
-                    const businessName = localStorage.getItem('pendingBusinessName') || user.displayName || '';
-                    const businessType = localStorage.getItem('pendingBusinessType') || 'van';
-                    await db.collection('vendors').doc(user.uid).set({
-                        uid: user.uid,
-                        email: user.email,
-                        businessName,
-                        businessType,
-                        subscriptionStatus: 'trial',
-                        trialStartedAt: firebase.firestore.Timestamp.now(),
-                        trialEndsAt: firebase.firestore.Timestamp.fromDate(
-                            new Date(Date.now() + 45 * 24 * 60 * 60 * 1000)
-                        ),
-                        truckCount: 0,
-                        eventCount: 0,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    localStorage.removeItem('pendingBusinessName');
-                    localStorage.removeItem('pendingBusinessType');
-                }
-
+                await ensureVendorDoc(result.user);
                 showState('stateSuccess');
                 setTimeout(() => window.location.href = 'vendor.html', 1200);
-
             } catch (error) {
                 console.error('Sign-in error:', error);
                 let msg = 'This sign-in link has expired or already been used. Request a new one to continue.';
@@ -155,6 +154,28 @@
                 else if (error.code === 'auth/invalid-email') msg = 'Email address does not match the sign-in link.';
                 document.getElementById('errorDetail').textContent = msg;
                 showState('stateError');
+            }
+        }
+
+        async function ensureVendorDoc(user) {
+            const vendorDoc = await db.collection('vendors').doc(user.uid).get();
+            if (!vendorDoc.exists) {
+                const businessName = localStorage.getItem('pendingBusinessName') || user.displayName || '';
+                const businessType = localStorage.getItem('pendingBusinessType') || 'van';
+                await db.collection('vendors').doc(user.uid).set({
+                    uid: user.uid,
+                    email: user.email,
+                    businessName,
+                    businessType,
+                    subscriptionStatus: 'trial',
+                    trialStartedAt: firebase.firestore.Timestamp.now(),
+                    trialEndsAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 45 * 24 * 60 * 60 * 1000)),
+                    truckCount: 0,
+                    eventCount: 0,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                localStorage.removeItem('pendingBusinessName');
+                localStorage.removeItem('pendingBusinessType');
             }
         }
 

@@ -1133,18 +1133,17 @@
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
-                const resp = await fetch('https://us-central1-icecreamtracker-9625b.cloudfunctions.net/sendMagicLink', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                if (!resp.ok) throw new Error('Failed');
-                localStorage.setItem('emailForSignIn', email);
+                const actionCodeSettings = {
+                    url: 'https://app.icecreamtracker.co.nz/verify.html',
+                    handleCodeInApp: false
+                };
+                await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+                window.localStorage.setItem('emailForSignIn', email);
                 document.getElementById('authInputs').style.display = 'none';
                 document.getElementById('authSentEmail').textContent = email;
                 document.getElementById('authSent').style.display = 'block';
                 document.getElementById('errorMessage').style.display = 'none';
-            } catch {
+            } catch (error) {
                 showError('Could not send sign-in link. Please try again.');
                 btn.disabled = false;
                 btn.textContent = 'Send me a sign-in link →';
@@ -1180,12 +1179,6 @@
         document.getElementById('email').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleMagicLink();
         });
-
-        // DEAD CODE BLOCK — kept to avoid reference errors from old event listener
-        if (false) { const email = '', password = '', businessName = '';
-            
-            try {
-        } // end dead code block
 
         // Live Toggle Handler
         document.getElementById('liveToggle').addEventListener('change', async (e) => {
