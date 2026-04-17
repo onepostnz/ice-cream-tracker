@@ -111,7 +111,9 @@
             // If the user is already authenticated (e.g. Firebase action handler completed sign-in),
             // just go straight to the dashboard
             if (auth.currentUser) {
-                await ensureVendorDoc(auth.currentUser);
+                if (!ADMIN_EMAILS.includes((auth.currentUser.email || '').toLowerCase())) {
+                    await ensureVendorDoc(auth.currentUser);
+                }
                 showState('stateSuccess');
                 setTimeout(() => redirectAfterSignIn(auth.currentUser), 1000);
                 return;
@@ -127,7 +129,9 @@
                     setTimeout(() => resolve(null), 3000);
                 }).then(async user => {
                     if (user) {
-                        await ensureVendorDoc(user);
+                        if (!ADMIN_EMAILS.includes((user.email || '').toLowerCase())) {
+                            await ensureVendorDoc(user);
+                        }
                         showState('stateSuccess');
                         setTimeout(() => redirectAfterSignIn(user), 1000);
                     } else {
@@ -153,7 +157,9 @@
             try {
                 const result = await auth.signInWithEmailLink(email, window.location.href);
                 localStorage.removeItem('emailForSignIn');
-                await ensureVendorDoc(result.user);
+                if (!ADMIN_EMAILS.includes((result.user.email || '').toLowerCase())) {
+                    await ensureVendorDoc(result.user);
+                }
                 showState('stateSuccess');
                 setTimeout(() => redirectAfterSignIn(result.user), 1200);
             } catch (error) {

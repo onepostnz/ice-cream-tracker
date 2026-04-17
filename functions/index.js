@@ -809,7 +809,7 @@ exports.sendMagicLink = onRequest({ secrets: secretList }, async (req, res) => {
         }
         const actionCodeSettings = {
             url: redirectUrl,
-            handleCodeInApp: false
+            handleCodeInApp: true
         };
         const link = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
         await sendEmail(email, emailTemplates.magicLink(link));

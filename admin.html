@@ -727,11 +727,13 @@
         btn.disabled    = true;
         btn.textContent = 'Sending…';
 
+        localStorage.setItem('emailForSignIn', email);
+
         try {
             const resp = await fetch(MAGIC_LINK_URL, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ email, continueUrl: window.location.href.split('?')[0] })
+                body:    JSON.stringify({ email, continueUrl: window.location.origin + '/verify.html' })
             });
             if (!resp.ok) throw new Error('Request failed');
             document.getElementById('sentEmailDisplay').textContent = email;
