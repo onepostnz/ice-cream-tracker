@@ -810,7 +810,7 @@
                 </div>
                 
                 <!-- Go Live Toggle -->
-                <div class="live-toggle-container">
+                <div class="live-toggle-container" id="liveToggleContainer">
                     <div class="live-toggle-info">
                         <div class="live-indicator" id="liveIndicator"></div>
                         <div class="live-text">
@@ -980,6 +980,7 @@
                                 <select id="editBusinessType">
                                     <option value="van">🚐 Ice Cream Van</option>
                                     <option value="shop">🏪 Ice Cream Shop</option>
+                                    <option value="both">🚐🏪 Van + Shop</option>
                                 </select>
                                 <button class="btn btn-primary btn-small" onclick="saveBusinessType()">Save</button>
                             </div>
@@ -1030,6 +1031,58 @@
                                 Cancel Subscription
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Shop Details Card (shown for shop/both businessType) -->
+                    <div class="card" id="shopDetailsCard" style="display:none;">
+                        <h2>🏪 Shop Details</h2>
+                        <p style="color:#666; margin-bottom:20px; font-size:14px;">Set your permanent shop information for the customer map.</p>
+                        <div id="shopDetailsMsg"></div>
+
+                        <div class="form-group">
+                            <label for="shopName">Shop Name</label>
+                            <input type="text" id="shopName" placeholder="Your shop name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shopAddress">Address</label>
+                            <input type="text" id="shopAddress" placeholder="Search for your shop address…">
+                        </div>
+                        <input type="hidden" id="shopLat">
+                        <input type="hidden" id="shopLng">
+
+                        <div class="form-group">
+                            <label for="shopPhone">Phone</label>
+                            <input type="tel" id="shopPhone" placeholder="+64 9 123 4567">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shopWebsite">Website (optional)</label>
+                            <input type="url" id="shopWebsite" placeholder="https://yourwebsite.co.nz">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shopFlavours">Menu / Flavours</label>
+                            <textarea id="shopFlavours" rows="3" placeholder="e.g. Vanilla, Chocolate, Strawberry, Hokey Pokey…" style="width:100%; padding:12px; border:2px solid #e0e0e0; border-radius:8px; font-family:inherit; font-size:14px; resize:vertical;"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Opening Hours</label>
+                            <div id="hoursGrid" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
+                        </div>
+
+                        <div class="form-group" style="display:flex; align-items:center; gap:14px; padding:14px; background:#f5f7fa; border-radius:10px;">
+                            <label class="toggle-switch" style="margin:0;">
+                                <input type="checkbox" id="shopVisible">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div>
+                                <strong style="font-size:14px;">Show on customer map</strong>
+                                <p style="font-size:12px; color:#666; margin-top:2px;">When enabled, your shop appears as a permanent listing</p>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="saveShopDetails()" style="width:100%; margin-top:10px;">Save Shop Details</button>
                     </div>
                 </div>
             </div>
@@ -1727,6 +1780,16 @@
             document.getElementById('editBusinessName').value = currentVendor.businessName || '';
             document.getElementById('editBusinessType').value = currentVendor.businessType || 'van';
 
+            // Show/hide sections based on businessType
+            const bizType = currentVendor.businessType || 'van';
+            document.getElementById('liveToggleContainer').style.display =
+                (bizType === 'shop') ? 'none' : '';
+            document.getElementById('shopDetailsCard').style.display =
+                (bizType === 'shop' || bizType === 'both') ? 'block' : 'none';
+
+            // Populate shop details if they exist
+            loadShopDetails(currentVendor);
+
             // Google users can't change email/password here
             const isGoogleUser = currentUser.providerData.some(p => p.providerId === 'google.com');
             if (isGoogleUser) {
@@ -1832,6 +1895,10 @@
                         ? 'Turn on to show as open on the customer map'
                         : 'Turn on to appear on customer map';
                 }
+                const bizType = type;
+                document.getElementById('liveToggleContainer').style.display = (bizType === 'shop') ? 'none' : '';
+                document.getElementById('shopDetailsCard').style.display = (bizType === 'shop' || bizType === 'both') ? 'block' : 'none';
+                if (bizType === 'shop' || bizType === 'both') loadShopDetails(currentVendor);
                 showAccountMsg('Business type updated!', true);
             } catch {
                 showAccountMsg('Failed to update. Please try again.', false);
@@ -1880,6 +1947,150 @@
                     showAccountMsg('Failed to update password: ' + e.message, false);
                 }
             }
+        }
+
+        // ============================================
+        // SHOP DETAILS
+        // ============================================
+
+        let shopAddressAutocomplete = null;
+        let shopLatLng = { lat: null, lng: null };
+
+        const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+        function initShopHoursGrid() {
+            const grid = document.getElementById('hoursGrid');
+            if (!grid) return;
+            grid.innerHTML = DAYS.map((day, i) => `
+                <div style="display:grid; grid-template-columns:90px 1fr; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                    <span style="font-size:13px; font-weight:500; color:#333;">${DAY_LABELS[i]}</span>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <input type="time" id="hours_${day}_open" value="09:00" style="padding:6px; border:2px solid #e0e0e0; border-radius:6px; font-size:13px; font-family:inherit;">
+                        <span style="font-size:13px; color:#666;">to</span>
+                        <input type="time" id="hours_${day}_close" value="17:00" style="padding:6px; border:2px solid #e0e0e0; border-radius:6px; font-size:13px; font-family:inherit;">
+                        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#666; cursor:pointer; white-space:nowrap;">
+                            <input type="checkbox" id="hours_${day}_closed" onchange="toggleDayClosed('${day}')"> Closed
+                        </label>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleDayClosed(day) {
+            const closed = document.getElementById(`hours_${day}_closed`).checked;
+            document.getElementById(`hours_${day}_open`).disabled = closed;
+            document.getElementById(`hours_${day}_close`).disabled = closed;
+            document.getElementById(`hours_${day}_open`).style.opacity = closed ? '0.4' : '1';
+            document.getElementById(`hours_${day}_close`).style.opacity = closed ? '0.4' : '1';
+        }
+
+        function initShopAddressAutocomplete() {
+            const input = document.getElementById('shopAddress');
+            if (!input || shopAddressAutocomplete) return;
+            shopAddressAutocomplete = new google.maps.places.Autocomplete(input, {
+                componentRestrictions: { country: 'nz' },
+                fields: ['geometry', 'formatted_address']
+            });
+            shopAddressAutocomplete.addListener('place_changed', () => {
+                const place = shopAddressAutocomplete.getPlace();
+                if (place.geometry) {
+                    shopLatLng.lat = place.geometry.location.lat();
+                    shopLatLng.lng = place.geometry.location.lng();
+                    document.getElementById('shopLat').value = shopLatLng.lat;
+                    document.getElementById('shopLng').value = shopLatLng.lng;
+                }
+            });
+        }
+
+        function loadShopDetails(vendor) {
+            initShopHoursGrid();
+            initShopAddressAutocomplete();
+
+            const sd = vendor.shopDetails;
+            if (!sd) return;
+
+            document.getElementById('shopName').value = sd.name || '';
+            document.getElementById('shopAddress').value = sd.address || '';
+            document.getElementById('shopPhone').value = sd.phone || '';
+            document.getElementById('shopWebsite').value = sd.website || '';
+            document.getElementById('shopFlavours').value = sd.flavours || '';
+            document.getElementById('shopVisible').checked = !!sd.visible;
+
+            if (sd.lat) {
+                shopLatLng.lat = sd.lat;
+                document.getElementById('shopLat').value = sd.lat;
+            }
+            if (sd.lng) {
+                shopLatLng.lng = sd.lng;
+                document.getElementById('shopLng').value = sd.lng;
+            }
+
+            if (sd.hours) {
+                DAYS.forEach(day => {
+                    const h = sd.hours[day];
+                    if (!h) return;
+                    const openEl  = document.getElementById(`hours_${day}_open`);
+                    const closeEl = document.getElementById(`hours_${day}_close`);
+                    const closedEl = document.getElementById(`hours_${day}_closed`);
+                    if (openEl)   openEl.value   = h.open  || '09:00';
+                    if (closeEl)  closeEl.value  = h.close || '17:00';
+                    if (closedEl) {
+                        closedEl.checked = !!h.closed;
+                        if (h.closed) toggleDayClosed(day);
+                    }
+                });
+            }
+        }
+
+        async function saveShopDetails() {
+            if (!currentUser || !currentVendor) return;
+
+            const name     = document.getElementById('shopName').value.trim();
+            const address  = document.getElementById('shopAddress').value.trim();
+            const phone    = document.getElementById('shopPhone').value.trim();
+            const website  = document.getElementById('shopWebsite').value.trim();
+            const flavours = document.getElementById('shopFlavours').value.trim();
+            const visible  = document.getElementById('shopVisible').checked;
+            const lat      = parseFloat(document.getElementById('shopLat').value) || shopLatLng.lat;
+            const lng      = parseFloat(document.getElementById('shopLng').value) || shopLatLng.lng;
+
+            if (!address) {
+                showShopDetailsMsg('Please enter a shop address.', false);
+                return;
+            }
+            if (!lat || !lng) {
+                showShopDetailsMsg('Please select your address from the autocomplete dropdown to set the map position.', false);
+                return;
+            }
+
+            const hours = {};
+            DAYS.forEach(day => {
+                const open   = document.getElementById(`hours_${day}_open`)?.value  || '09:00';
+                const close  = document.getElementById(`hours_${day}_close`)?.value || '17:00';
+                const closed = document.getElementById(`hours_${day}_closed`)?.checked || false;
+                hours[day] = { open, close, closed };
+            });
+
+            const shopDetails = { name, address, lat, lng, phone, website, flavours, hours, visible };
+
+            try {
+                await db.collection('vendors').doc(currentUser.uid).update({
+                    shopDetails,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                currentVendor.shopDetails = shopDetails;
+                showShopDetailsMsg('Shop details saved!', true);
+            } catch (err) {
+                showShopDetailsMsg('Error saving: ' + err.message, false);
+            }
+        }
+
+        function showShopDetailsMsg(msg, success) {
+            const el = document.getElementById('shopDetailsMsg');
+            el.textContent = msg;
+            el.style.cssText = `display:block; padding:10px 14px; border-radius:8px; font-size:14px; margin-bottom:16px; background:${success ? '#d4edda' : '#f8d7da'}; color:${success ? '#155724' : '#721c24'};`;
+            setTimeout(() => { el.style.display = 'none'; }, 4000);
         }
     </script>
 </body>

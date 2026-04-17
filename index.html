@@ -7,7 +7,7 @@
     <meta name="description" content="Track ice cream vans in real-time across New Zealand">
     
     <!-- Google Maps -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6ftSvpvvPdNPGe3lbD81KJEEQB_zYTV0&libraries=geometry"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6ftSvpvvPdNPGe3lbD81KJEEQB_zYTV0&libraries=geometry,places"></script>
     
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -335,32 +335,132 @@
                 gap: 16px;
                 padding: 16px;
             }
-            
+
             .stats {
                 flex-wrap: wrap;
                 gap: 12px;
                 font-size: 12px;
             }
-            
+
             .stat-number {
                 font-size: 16px;
             }
-            
+
             .logo-text {
                 font-size: 20px;
             }
-            
+
             .sidebar {
                 display: none;
             }
-            
+
             .mobile-panel {
                 display: block;
             }
-            
+
             .my-location-btn {
                 bottom: 90px;
             }
+        }
+
+        .search-map-btn {
+            position: absolute;
+            top: 20px;
+            right: 420px;
+            background: #2B4C7E;
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .search-map-btn:hover { background: #3D5A8C; transform: scale(1.05); }
+
+        .map-search-bar {
+            position: absolute;
+            top: 20px;
+            right: 420px;
+            z-index: 1002;
+            display: none;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            padding: 8px 8px 8px 16px;
+            align-items: center;
+            gap: 8px;
+            width: 320px;
+            animation: searchSlideIn 0.2s ease;
+        }
+        .map-search-bar.open { display: flex; }
+
+        @keyframes searchSlideIn {
+            from { opacity: 0; transform: scale(0.95) translateX(10px); }
+            to   { opacity: 1; transform: scale(1)    translateX(0); }
+        }
+
+        .map-search-bar input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            color: #1a1f36;
+            font-family: inherit;
+            background: transparent;
+        }
+
+        .map-search-bar input::placeholder { color: #aaa; }
+
+        .map-search-close {
+            background: #f0f0f0;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .map-search-close:hover { background: #e0e0e0; }
+
+        .search-indicator {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(43,76,126,0.92);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1001;
+            display: none;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Highlighted marker pulse */
+        @keyframes markerPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255,107,157,0.6); }
+            70%  { box-shadow: 0 0 0 20px rgba(255,107,157,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,107,157,0); }
+        }
+
+        @media (max-width: 768px) {
+            .search-map-btn { right: 80px; top: auto; bottom: 170px; }
+            .map-search-bar { right: 16px; left: 16px; width: auto; top: auto; bottom: 170px; }
         }
     </style>
 </head>
@@ -418,6 +518,14 @@
         </div>
     </div>
     
+    <!-- Location Search -->
+    <button class="search-map-btn" id="searchMapBtn" onclick="openMapSearch()" title="Search location">🔍</button>
+    <div class="map-search-bar" id="mapSearchBar">
+        <input type="text" id="mapSearchInput" placeholder="Search suburb or address…">
+        <button class="map-search-close" onclick="closeMapSearch()">✕</button>
+    </div>
+    <div class="search-indicator" id="searchIndicator"></div>
+
     <div id="map"></div>
     
     <button class="my-location-btn" onclick="centerOnUser()" title="My Location">📍</button>
@@ -446,6 +554,8 @@
         let userLocation = null;
         let allEvents = [];
         let allVans = {};
+        let shopMarkers = {};
+        let allShops = {};
 
         // Initialize map with mobile-friendly settings
         function initMap() {
@@ -502,7 +612,9 @@
 
             listenForVans();
             listenForEvents();
-            
+            listenForShops();
+            initMapSearch();
+
             map.addListener('bounds_changed', updateSidebar);
         }
 
@@ -561,6 +673,87 @@
                     
                     updateSidebar();
                 });
+        }
+
+        function listenForShops() {
+            firestore.collection('vendors')
+                .where('businessType', 'in', ['shop', 'both'])
+                .onSnapshot((snapshot) => {
+                    // Remove old shop markers
+                    Object.keys(shopMarkers).forEach(id => {
+                        shopMarkers[id].setMap(null);
+                        delete shopMarkers[id];
+                    });
+                    allShops = {};
+
+                    snapshot.forEach((doc) => {
+                        const v = doc.data();
+                        const sd = v.shopDetails;
+                        if (!sd || !sd.visible || !sd.lat || !sd.lng) return;
+
+                        allShops[doc.id] = { id: doc.id, ...v };
+                        createShopMarker(doc.id, v);
+                    });
+
+                    updateSidebar();
+                });
+        }
+
+        function createShopMarker(id, vendor) {
+            const sd = vendor.shopDetails;
+            const position = { lat: sd.lat, lng: sd.lng };
+
+            const svg = `<svg width="52" height="52" xmlns="http://www.w3.org/2000/svg"><circle cx="26" cy="26" r="22" fill="#FF6B9D" stroke="white" stroke-width="3"/><text x="26" y="33" font-size="22" text-anchor="middle">🏪</text></svg>`;
+            const icon = {
+                url: 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))),
+                scaledSize: new google.maps.Size(52, 52),
+                anchor: new google.maps.Point(26, 26)
+            };
+
+            const marker = new google.maps.Marker({
+                position,
+                map,
+                icon,
+                title: sd.name || vendor.businessName || 'Ice Cream Shop',
+                zIndex: 90
+            });
+
+            // Build hours HTML
+            const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+            const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            let hoursHtml = '';
+            if (sd.hours) {
+                const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+                hoursHtml = '<div style="margin-top:10px; font-size:13px;">' +
+                    days.map((day, i) => {
+                        const h = sd.hours[day];
+                        if (!h) return '';
+                        const isToday = day === today;
+                        const text = h.closed ? 'Closed' : `${h.open || '?'} – ${h.close || '?'}`;
+                        return `<div style="display:flex;justify-content:space-between;gap:16px;${isToday ? 'font-weight:600;color:#2B4C7E;' : 'color:#666;'}"><span>${dayLabels[i]}</span><span>${text}</span></div>`;
+                    }).join('') +
+                    '</div>';
+            }
+
+            const infoContent = `
+                <div style="padding:4px; max-width:260px; font-family:-apple-system,sans-serif;">
+                    <div style="font-size:16px;font-weight:700;color:#1a1f36;margin-bottom:6px;">${sd.name || vendor.businessName || 'Ice Cream Shop'} 🏪</div>
+                    ${sd.address ? `<div style="font-size:13px;color:#666;margin-bottom:4px;">📍 ${sd.address}</div>` : ''}
+                    ${sd.phone ? `<div style="font-size:13px;color:#666;margin-bottom:4px;">📞 <a href="tel:${sd.phone}" style="color:#FF6B9D;">${sd.phone}</a></div>` : ''}
+                    ${sd.website ? `<div style="font-size:13px;margin-bottom:4px;">🌐 <a href="${sd.website}" target="_blank" style="color:#FF6B9D;">Website</a></div>` : ''}
+                    ${sd.flavours ? `<div style="font-size:13px;color:#666;margin-bottom:4px;">🍦 ${sd.flavours}</div>` : ''}
+                    ${hoursHtml}
+                </div>`;
+
+            const infoWindow = new google.maps.InfoWindow({ content: infoContent });
+            marker.addListener('click', () => {
+                // Close any open info windows
+                if (window._openInfoWindow) window._openInfoWindow.close();
+                infoWindow.open(map, marker);
+                window._openInfoWindow = infoWindow;
+            });
+
+            shopMarkers[id] = marker;
         }
 
         function getVendorMarkerIcon(van) {
@@ -637,6 +830,15 @@
                 }
             });
             
+            Object.entries(allShops).forEach(([id, vendor]) => {
+                const sd = vendor.shopDetails;
+                if (!sd || !sd.lat || !sd.lng) return;
+                const position = new google.maps.LatLng(sd.lat, sd.lng);
+                if (bounds.contains(position)) {
+                    visibleItems.push({ type: 'shop', id, data: vendor, position });
+                }
+            });
+
             allEvents.forEach(event => {
                 if (event.location && event.location.lat && event.location.lng) {
                     const position = new google.maps.LatLng(event.location.lat, event.location.lng);
@@ -676,6 +878,7 @@
             
             let html = '';
             const vans = items.filter(item => item.type === 'van');
+            const shops = items.filter(item => item.type === 'shop');
             const events = items.filter(item => item.type === 'event');
             
             vans.forEach(item => {
@@ -694,6 +897,34 @@
                 `;
             });
             
+            shops.forEach(item => {
+                const sd = item.data.shopDetails || {};
+                const name = sd.name || item.data.businessName || 'Ice Cream Shop';
+                // Check if open today based on hours
+                let hoursText = '';
+                if (sd.hours) {
+                    const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+                    const today = days[new Date().getDay()];
+                    const todayHours = sd.hours[today];
+                    if (todayHours) {
+                        hoursText = todayHours.closed ? 'Closed today' : `Today ${todayHours.open}–${todayHours.close}`;
+                    }
+                }
+                html += `
+                    <div class="van-card" style="background:#fff0f7; border-color:#FF6B9D;" onclick="zoomToShop('${item.id}')">
+                        <div class="event-card-header">
+                            <div class="event-icon">🏪</div>
+                            <div class="event-info">
+                                <div class="event-name">${name}</div>
+                                <div class="event-details">${sd.address || 'Ice Cream Shop'}</div>
+                                ${hoursText ? `<div class="event-details" style="font-size:12px;color:#FF6B9D;">${hoursText}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="van-badge" style="background:#FF6B9D;">🏪 SHOP</div>
+                    </div>
+                `;
+            });
+
             events.forEach(item => {
                 const eventDate = new Date(item.data.date + 'T' + item.data.time);
                 const dateStr = eventDate.toLocaleDateString('en-NZ', { 
@@ -742,12 +973,110 @@
             }
         }
 
+        function zoomToShop(shopId) {
+            const vendor = allShops[shopId];
+            if (!vendor || !vendor.shopDetails) return;
+            const sd = vendor.shopDetails;
+            map.setCenter({ lat: sd.lat, lng: sd.lng });
+            map.setZoom(16);
+            if (shopMarkers[shopId]) {
+                google.maps.event.trigger(shopMarkers[shopId], 'click');
+            }
+            if (window.innerWidth <= 768) {
+                setTimeout(() => document.getElementById('mobilePanel').classList.add('collapsed'), 300);
+            }
+        }
+
         function centerOnUser() {
             if (userLocation) {
                 map.setCenter(userLocation);
                 map.setZoom(15);
             } else {
                 alert('Location not available. Please enable location services.');
+            }
+        }
+
+        let mapSearchAutocomplete = null;
+
+        function initMapSearch() {
+            const input = document.getElementById('mapSearchInput');
+            mapSearchAutocomplete = new google.maps.places.Autocomplete(input, {
+                componentRestrictions: { country: 'nz' },
+                fields: ['geometry', 'formatted_address', 'name']
+            });
+
+            mapSearchAutocomplete.addListener('place_changed', () => {
+                const place = mapSearchAutocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) return;
+
+                map.panTo(place.geometry.location);
+                map.setZoom(14);
+                closeMapSearch();
+
+                const label = place.name || place.formatted_address || 'that location';
+                showSearchIndicator('Searching near ' + label + '…');
+
+                // Highlight nearby items within ~10km
+                setTimeout(() => highlightNearby(place.geometry.location), 600);
+            });
+
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeMapSearch();
+            });
+        }
+
+        function openMapSearch() {
+            document.getElementById('searchMapBtn').style.display = 'none';
+            const bar = document.getElementById('mapSearchBar');
+            bar.classList.add('open');
+            setTimeout(() => document.getElementById('mapSearchInput').focus(), 50);
+        }
+
+        function closeMapSearch() {
+            document.getElementById('mapSearchBar').classList.remove('open');
+            document.getElementById('mapSearchInput').value = '';
+            document.getElementById('searchMapBtn').style.display = 'flex';
+        }
+
+        function showSearchIndicator(text) {
+            const el = document.getElementById('searchIndicator');
+            el.textContent = text;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        function highlightNearby(center) {
+            const radiusMeters = 10000; // 10km
+            let foundCount = 0;
+
+            // Highlight vans
+            Object.entries(vanMarkers).forEach(([id, marker]) => {
+                const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                    center, marker.getPosition()
+                );
+                if (dist <= radiusMeters) {
+                    marker.setAnimation(google.maps.Animation.BOUNCE);
+                    setTimeout(() => marker.setAnimation(null), 2000);
+                    foundCount++;
+                }
+            });
+
+            // Highlight shops
+            Object.entries(shopMarkers).forEach(([id, marker]) => {
+                const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                    center, marker.getPosition()
+                );
+                if (dist <= radiusMeters) {
+                    marker.setAnimation(google.maps.Animation.BOUNCE);
+                    setTimeout(() => marker.setAnimation(null), 2000);
+                    foundCount++;
+                }
+            });
+
+            if (foundCount === 0) {
+                showSearchIndicator('No ice cream found within 10km');
+            } else {
+                showSearchIndicator(`Found ${foundCount} ice cream spot${foundCount !== 1 ? 's' : ''} nearby!`);
             }
         }
 

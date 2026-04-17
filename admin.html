@@ -1103,6 +1103,18 @@
                 <div class="info-value">${escHtml(v.phone)}</div>
             </div>` : '';
 
+        const shopRow = v.shopDetails ? `
+            <div style="grid-column:1/-1; border-top:1px solid var(--border); padding-top:16px; margin-top:4px;">
+                <div class="info-label" style="margin-bottom:12px;">Shop Details</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    ${v.shopDetails.address ? `<div><div class="info-label">Address</div><div class="info-value" style="font-size:13px">${escHtml(v.shopDetails.address)}</div></div>` : ''}
+                    ${v.shopDetails.phone ? `<div><div class="info-label">Phone</div><div class="info-value">${escHtml(v.shopDetails.phone)}</div></div>` : ''}
+                    ${v.shopDetails.website ? `<div><div class="info-label">Website</div><div class="info-value"><a href="${escHtml(v.shopDetails.website)}" target="_blank" style="color:var(--primary)">${escHtml(v.shopDetails.website)}</a></div></div>` : ''}
+                    ${v.shopDetails.flavours ? `<div style="grid-column:1/-1"><div class="info-label">Menu / Flavours</div><div class="info-value" style="font-size:13px">${escHtml(v.shopDetails.flavours)}</div></div>` : ''}
+                    <div><div class="info-label">Visible on Map</div><div class="info-value"><span class="badge ${v.shopDetails.visible ? 'active' : 'cancelled'}">${v.shopDetails.visible ? 'Visible' : 'Hidden'}</span></div></div>
+                </div>
+            </div>` : '';
+
         document.getElementById('vendorModalContent').innerHTML = `
             <h2 class="modal-title">${escHtml(v.businessName || 'Unnamed Vendor')}</h2>
 
@@ -1114,7 +1126,7 @@
                 <div>
                     <div class="info-label">Business Type</div>
                     <div class="info-value">
-                        <span class="badge ${v.businessType}">${v.businessType === 'shop' ? '🏪 Shop' : '🚐 Van'}</span>
+                        <span class="badge ${v.businessType === 'both' ? 'van' : v.businessType}">${v.businessType === 'shop' ? '🏪 Shop' : v.businessType === 'both' ? '🚐🏪 Van + Shop' : '🚐 Van'}</span>
                     </div>
                 </div>
                 <div>
@@ -1138,6 +1150,7 @@
                     <div class="info-value">${v.eventCount || 0}</div>
                 </div>
                 ${phoneRow}
+                ${shopRow}
             </div>
 
             <div class="modal-actions">
